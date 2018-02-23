@@ -43,7 +43,7 @@ namespace FHIR3APIApp.Utils
             cc.Telecom = new List<ContactPoint>();
             cc.Telecom.Add(new ContactPoint(ContactPoint.ContactPointSystem.Email, ContactPoint.ContactPointUse.Work, "stordahl@microsoft.com"));
             cs.Contact.Add(cc);
-            cs.Kind = CapabilityStatement.CapabilityStatementKind.Capability;
+            cs.Kind = CapabilityStatement.CapabilityStatementKind.Instance;
             cs.Date = "2018-02-01";
             cs.Description = new Markdown("This is the FHIR capability statement for the HLS Team API Application FHIR Server 3.0.1");
             cs.Software = new CapabilityStatement.SoftwareComponent();
