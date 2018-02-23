@@ -293,8 +293,9 @@ namespace FHIR3APIApp.Controllers
                 if (retVal != null) respval = SerializeResponse(retVal);
                 response = this.Request.CreateResponse(HttpStatusCode.OK);
                 response.Headers.TryAddWithoutValidation("Accept", CurrentAcceptType);
-                
+                response.Headers.Add("ETag", "W/\"" + retVal.Meta.VersionId + "\"");
                 response.Content = new StringContent(respval, Encoding.UTF8);
+                response.Content.Headers.LastModified = retVal.Meta.LastUpdated;
             }
             else
             {
