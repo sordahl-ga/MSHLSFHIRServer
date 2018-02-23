@@ -27,6 +27,7 @@ using Microsoft.Azure;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http.Cors;
+using FHIR3APIApp.Models;
 using FHIR3APIApp.Providers;
 using FHIR3APIApp.Utils;
 using FHIR3APIApp.Security;
@@ -58,8 +59,9 @@ namespace FHIR3APIApp.Controllers
             jsonparser = new FhirJsonParser(parsersettings);
             xmlparser = new FhirXmlParser(parsersettings);
         }
-        private async Task<Resource> ProcessSingleResource(Resource p,string resourceType,string matchversionid=null)
+        private async Task<ResourceResponse> ProcessSingleResource(Resource p,string resourceType,string matchversionid=null)
         {
+            
             //Version conflict detection
             if (!String.IsNullOrEmpty(matchversionid))
             {
@@ -73,7 +75,7 @@ namespace FHIR3APIApp.Controllers
                     ic.Code = OperationOutcome.IssueType.Exception;
                     ic.Diagnostics = "Version conflict current resource version of " + resourceType + "/" + p.Id + " is " + cv.Meta.VersionId;
                     oo.Issue.Add(ic);
-                    return oo;
+                    return new ResourceResponse(oo, -1);
                 }
             }
             //Prepare for Insert/update and Version
@@ -82,9 +84,9 @@ namespace FHIR3APIApp.Controllers
             p.Meta.VersionId = Guid.NewGuid().ToString();
             p.Meta.LastUpdated = DateTimeOffset.UtcNow;
             var rslt = await storage.UpsertFHIRResource(p);
-            return p;
+            return new ResourceResponse(p, rslt);
         }
-        private async Task<HttpResponseMessage> Upsert(string resourceType, HttpStatusCode statusCode,string headerid=null)
+        private async Task<HttpResponseMessage> Upsert(string resourceType,string headerid=null)
         {
             try
             {
@@ -115,8 +117,9 @@ namespace FHIR3APIApp.Controllers
                 }
                 if (String.IsNullOrEmpty(p.Id) && headerid != null) p.Id = headerid;
                 //Store resource regardless of type
-                p = await ProcessSingleResource(p, resourceType, IsMatchVersionId);
-                var response = this.Request.CreateResponse(statusCode);
+                var dbresp = await ProcessSingleResource(p, resourceType, IsMatchVersionId);
+                p = dbresp.Resource;
+                var response = this.Request.CreateResponse(dbresp.Response==1 ? HttpStatusCode.Created : HttpStatusCode.OK);
                 response.Headers.Add("Location", Request.RequestUri.AbsoluteUri + (headerid==null ? "/" + p.Id :""));
                 response.Headers.Add("ETag", "W/\"" + p.Meta.VersionId + "\"");
                 //Extract and Save each Resource in bundle if it's a batch type
@@ -133,7 +136,7 @@ namespace FHIR3APIApp.Controllers
                     foreach (Bundle.EntryComponent ec in source.Entry)
                     {
                         var rslt = await ProcessSingleResource(ec.Resource, Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), ec.Resource.ResourceType));
-                        results.Entry.Add(new Bundle.EntryComponent() { Resource = rslt });
+                        results.Entry.Add(new Bundle.EntryComponent() { Resource = rslt.Resource });
                     }
                 }
                 return response;
@@ -159,13 +162,13 @@ namespace FHIR3APIApp.Controllers
         [Route("{resource}")]
         public async Task<HttpResponseMessage> Post(string resource)
         {
-            return await Upsert(resource, HttpStatusCode.Created);
+            return await Upsert(resource);
         }
         [HttpPut]
         [Route("{resource}")]
         public async Task<HttpResponseMessage> Put(string resource)
         {
-            return await Upsert(resource, HttpStatusCode.OK);
+            return await Upsert(resource);
         }
         [HttpGet]
         [Route("{resource}")]
@@ -232,13 +235,13 @@ namespace FHIR3APIApp.Controllers
         [Route("{resource}/{id}")]
         public async Task<HttpResponseMessage> PutWithId(string resource, string id)
         {
-            return await Upsert(resource, HttpStatusCode.OK,id);
+            return await Upsert(resource,id);
         }
         [HttpPost]
         [Route("{resource}/{id}")]
         public async Task<HttpResponseMessage> PostWIthId(string resource, string id)
         {
-            return await Upsert(resource, HttpStatusCode.OK,id);
+            return await Upsert(resource,id);
         }
         [HttpGet]
         [Route("{resource}/{id}")]
@@ -246,11 +249,11 @@ namespace FHIR3APIApp.Controllers
         {
             if (Request.Method == HttpMethod.Post)
             {
-                return await Upsert(resource, HttpStatusCode.Created);
+                return await Upsert(resource);
             }
             if (Request.Method == HttpMethod.Put)
             {
-                return await Upsert(resource, HttpStatusCode.OK);
+                return await Upsert(resource);
             }
 
             HttpResponseMessage response = null;

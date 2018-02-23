@@ -173,32 +173,35 @@ namespace FHIR3APIApp.Providers
           
         }
        
-        private async Task<bool> CreateResourceIfNotExists(string databaseName, Hl7.Fhir.Model.Resource r)
+        private async Task<int> CreateResourceIfNotExists(string databaseName, Hl7.Fhir.Model.Resource r)
         {
+            int retstatus = -1; //Error
+            
             try
             {
-                if (r == null) return false;
+                if (r == null) return retstatus;
                 string fh = historystore.InsertResourceHistoryItem(r);
                 if (fh == null)
                 {
                     //Trace.TraceError("Failed to update resource history...Upsert aborted for {0}-{1}", Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType), r.Id);
-                    return false;
+                    return retstatus;
                 }
                 //Overflow remove attachments or error
                 if (fh.Length > 500000)
                 {
-
+                    return retstatus;
                 }
                 JObject obj = JObject.Parse(fh);
                 var inserted = await this.client.UpsertDocumentAsync(UriFactory.CreateDocumentCollectionUri(databaseName, Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType)), obj);
-                return true;
+                retstatus = (inserted.StatusCode == HttpStatusCode.Created ? 1 : 0);
+                return retstatus;
             }
             catch (DocumentClientException de)
             {
                 //Trace.TraceError("Error creating resource: {0}-{1}-{2} Message: {3}", databaseName,Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType),r.ResourceType),r.Id,de.Message);
                 historystore.DeleteResourceHistoryItem(r);
                 //Trace.TraceInformation("Resource history entry for {0}-{1} version {2} rolledback due to document creation error.", Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType), r.Id, r.Meta.VersionId);
-                return false;
+                return retstatus;
             }
             
         }
@@ -219,7 +222,7 @@ namespace FHIR3APIApp.Providers
             }                                           
         }
 
-        public async Task<bool> UpsertFHIRResource(Hl7.Fhir.Model.Resource r)
+        public async Task<int> UpsertFHIRResource(Hl7.Fhir.Model.Resource r)
         {
             
             await CreateDocumentCollectionIfNotExists(DBName, Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType));
