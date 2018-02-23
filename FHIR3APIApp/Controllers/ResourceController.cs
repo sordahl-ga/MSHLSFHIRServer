@@ -110,8 +110,8 @@ namespace FHIR3APIApp.Controllers
                     ic.Diagnostics = "Resource provide is not of type " + resourceType;
                     oo.Issue.Add(ic);
                     var respconf = this.Request.CreateResponse(HttpStatusCode.BadRequest);
-                    respconf.Content.Headers.LastModified = DateTimeOffset.Now;
                     respconf.Content = new StringContent(SerializeResponse(oo), Encoding.UTF8);
+                    respconf.Content.Headers.LastModified = DateTimeOffset.Now;
                     respconf.Headers.TryAddWithoutValidation("Accept", CurrentAcceptType);
                     respconf.Content.Headers.TryAddWithoutValidation("Content-Type", IsAccceptTypeJSON ? FHIRCONTENTTYPEJSON : FHIRCONTENTTYPEXML);
                     return respconf;
@@ -121,9 +121,11 @@ namespace FHIR3APIApp.Controllers
                 var dbresp = await ProcessSingleResource(p, resourceType, IsMatchVersionId);
                 p = dbresp.Resource;
                 var response = this.Request.CreateResponse(dbresp.Response==1 ? HttpStatusCode.Created : HttpStatusCode.OK);
+                response.Content = new StringContent("", Encoding.UTF8);
                 response.Content.Headers.LastModified = p.Meta.LastUpdated;
                 response.Headers.Add("Location", Request.RequestUri.AbsoluteUri + (headerid==null ? "/" + p.Id :""));
                 response.Headers.Add("ETag", "W/\"" + p.Meta.VersionId + "\"");
+                
                 //Extract and Save each Resource in bundle if it's a batch type
                 if (p.ResourceType==ResourceType.Bundle && ((Bundle)p).Type==Bundle.BundleType.Batch)
                 {
@@ -154,7 +156,6 @@ namespace FHIR3APIApp.Controllers
                 oo.Issue.Add(ic);
                 var response = this.Request.CreateResponse(HttpStatusCode.BadRequest);
                 response.Headers.TryAddWithoutValidation("Accept", CurrentAcceptType);
-                
                 response.Content = new StringContent(SerializeResponse(oo), Encoding.UTF8);
                 response.Content.Headers.TryAddWithoutValidation("Content-Type", IsAccceptTypeJSON ? FHIRCONTENTTYPEJSON : FHIRCONTENTTYPEXML);
                 response.Content.Headers.LastModified = DateTimeOffset.Now;
