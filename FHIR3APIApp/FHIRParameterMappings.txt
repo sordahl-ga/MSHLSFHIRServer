@@ -1,0 +1,57 @@
+﻿#Search Definition File--Convert FHIR Search Parameters to CosmosDB Queries
+#Parameter Type definition: Defines parameter type for the resource and parameter for valid modifiers and search type
+#[Resource].[ParameterName] = [Parameter Type (e.g. string, date, int, etc...)]
+#[Resource].[ParameterName].join=nested resource joins needed for query
+#Parameter to DBQuery Template: Maps the search parameter to a where clause DB Query string for searching the DB
+#[Resource].[ParameterName].[Parameter Modifier (Based on ParameterType (e.g. contains, exact,eq,lt,gt,etc...))] = [DB Where Clause]
+#-----------------------------------------------------------------------------------------------------------------------------------
+Patient.name=string
+Patient.name.join=JOIN names in c.name
+Patient.name.default=STARTSWITH(names.family,'~v0~')
+Patient.name.contains=CONTAINS(names.family,'~v0~')
+Patient.name.exact=names.family='~v0~'
+Patient.identifier=string
+Patient.identifier.join=JOIN ids in c.identifier
+Patient.identifier.default=ids.system='~v0~' AND ids["value"]='~v1~'
+Patient.given=string
+Patient.given.join=JOIN names in c.name
+Patient.given.default=ARRAY_CONTAINS(names.given,'~v0~')
+Patient.family=string
+Patient.family.join=JOIN names in c.name
+Patient.family.default=STARTSWITH(names.family,'~v0~')
+Patient.family.contains=CONTAINS(names.family,'~v0~')
+Patient.family.exact=names.family='~v0~'
+Patient.gender=string
+Patient.gender.default=c.gender='~v0~'
+Patient.gender.exact=c.gender='~v0~'
+Patient.birthdate=date
+Patient.birthdate.default=c.birthDate='~v0~'
+Patient.birthdate.eq=c.birthDate='~v0~'
+Patient.birthdate.ne=c.birthDate!='~v0~'
+Practitioner.city=string
+Practitioner.city.join=JOIN addresses in c.address
+Practitioner.city.default=STARTSWITH(LOWER(addresses.city),LOWER('~v0~'))
+Practitioner.name=string
+Practitioner.name.join=JOIN names in c.name
+Practitioner.name.default=CONTAINS(LOWER(names.text),LOWER('~v0~'))
+CarePlan.patient=string
+CarePlan.patient.default=LOWER(c.subject.reference)='patient/~v0~'
+Observation.patient=string
+Observation.patient.default=LOWER(c.subject.reference)='patient/~v0~'
+Observation.subject=string
+Observation.subject.default=LOWER(c.subject.reference)='~v0~'
+Observation.code=string
+Observation.code.join=JOIN codes in c.code.coding
+Observation.code.default=codes.system='~v0~' AND codes.code='~v1~'
+ImagingStudy.patient=string
+ImagingStudy.patient.default=LOWER(c.patient.reference)='patient/~v0~'
+Device.patient=string
+Device.patient.default=LOWER(c.patient.reference)='patient/~v0~'
+MedicationStatement.patient=string
+MedicationStatement.patient.default=LOWER(c.subject.reference)='patient/~v0~'
+MedicationStatement.subject=string
+MedicationStatement.subject.default=LOWER(c.subject.reference)='~v0~'
+AdverseEvent.patient=string
+AdverseEvent.patient.default=LOWER(c.subject.reference)='patient/~v0~'
+AdverseEvent.subject=string
+AdverseEvent.subject.default=LOWER(c.subject.reference)='~v0~'

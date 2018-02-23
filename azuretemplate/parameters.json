@@ -1,0 +1,48 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "databaseAccounts_docdb_name": {
+            "value": "myfhirdocdb"
+        },
+        "sites_fhirserver_name": {
+            "value": "myfhirserver"
+        },
+        "config_web_name": {
+            "value": "web"
+        },
+        "storageAccounts_fhirstorage_name": {
+            "value": "myfhirstorage"
+        },
+        "serverfarms_ServicePlan_name": {
+            "value": "myfhirServicePlan"
+        },
+        "hostNameBindings_fhirserver.azurewebsites.net_name": {
+            "value": "myfhirserver.azurewebsites.net"
+        },
+		 "fhirstoragelocation": {
+              "value": "East US 2"
+        },
+        "fhirweblocation": {
+              "value": "Central US"
+         },
+		 "repoURL": {
+				"value": "https://github.com/sordahl-ga/MSHLSFHIRServer"
+		},
+		 "branch": {
+				"value": "master"
+		},
+		 "enableauth": {
+				"value": "false"
+		},
+		 "tenent": {
+				"value": "microsoft.onmicrosoft.com"
+		},
+		 "audience": {
+				"value": "myfhirserver.azurewebsites.net"
+		},
+		 "fhirdbname": {
+				"value": "FHIR3"
+		}
+	}
+}
