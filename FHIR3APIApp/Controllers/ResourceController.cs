@@ -40,8 +40,8 @@ namespace FHIR3APIApp.Controllers
     {
 
         private IFHIRStore storage;
-        private static string FHIRCONTENTTYPEJSON = "application/fhir+json";
-        private static string FHIRCONTENTTYPEXML = "application/fhir+xml";
+        private static string FHIRCONTENTTYPEJSON = "application/fhir+json;charset=utf-8";
+        private static string FHIRCONTENTTYPEXML = "application/fhir+xml;charset=utf-8";
         private readonly string parsemode = CloudConfigurationManager.GetSetting("FHIRParserMode");
         private bool _strict = false;
         private FhirJsonParser jsonparser = null;
