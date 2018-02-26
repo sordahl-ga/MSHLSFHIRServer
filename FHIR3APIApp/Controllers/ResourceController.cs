@@ -140,7 +140,7 @@ namespace FHIR3APIApp.Controllers
                     foreach (Bundle.EntryComponent ec in source.Entry)
                     {
                         var rslt = await ProcessSingleResource(ec.Resource, Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), ec.Resource.ResourceType));
-                        results.Entry.Add(new Bundle.EntryComponent() { Resource = rslt.Resource });
+                        results.Entry.Add(new Bundle.EntryComponent() { Resource = rslt.Resource, FullUrl = FhirHelper.GetFullURL(Request, rslt.Resource) });
                     }
                 }
                 return response;
@@ -197,7 +197,7 @@ namespace FHIR3APIApp.Controllers
                 results.Entry = new System.Collections.Generic.List<Bundle.EntryComponent>();
                 foreach (Resource p in retVal)
                 {
-                    results.Entry.Add(new Bundle.EntryComponent() { Resource = p });
+                    results.Entry.Add(new Bundle.EntryComponent() { Resource = p, FullUrl = FhirHelper.GetFullURL(Request, p) });
                 }
 
                 if (retVal != null)
