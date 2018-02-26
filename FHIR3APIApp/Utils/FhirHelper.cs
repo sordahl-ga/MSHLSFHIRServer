@@ -92,7 +92,24 @@ namespace FHIR3APIApp.Utils
     public static Type ResourceTypeFromString(string resourceType)
     {
         return Type.GetType("Hl7.Fhir.Model." + resourceType + ",Hl7.Fhir.STU3.Core");
-    }  
+    }
+    public static string GetResourceTypeString(Resource r)
+    {
+            return Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType);
+    }
+    public static string GetFullURL(HttpRequestMessage request,Resource r)
+    {
+            try
+            {
+                Uri baseUri = new Uri(request.RequestUri.AbsoluteUri.Replace(request.RequestUri.PathAndQuery, String.Empty));
+                Uri resourceFullPath = new Uri(baseUri, VirtualPathUtility.ToAbsolute("~/" + GetResourceTypeString(r) + "/" + r.Id));
+                return resourceFullPath.ToString();
+            }
+            catch (Exception e1)
+            {
+                return null;
+            }
+    }
     public static Patient PatientName(string standardname,HumanName.NameUse? use,Patient pat)
         {
             string[] family = standardname.Split(',');

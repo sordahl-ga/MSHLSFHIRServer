@@ -324,7 +324,7 @@ namespace FHIR3APIApp.Controllers
             foreach (string h in history)
             {
                 var r = (Resource)jsonparser.Parse(h, FhirHelper.ResourceTypeFromString(resource));
-                results.Entry.Add(new Bundle.EntryComponent() { Resource = r,FullUrl = Request.RequestUri.AbsoluteUri});
+                results.Entry.Add(new Bundle.EntryComponent() { Resource = r, FullUrl = FhirHelper.GetFullURL(Request, r) });
                
             }
            
