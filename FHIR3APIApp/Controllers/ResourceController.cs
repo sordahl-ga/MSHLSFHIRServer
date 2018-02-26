@@ -318,13 +318,13 @@ namespace FHIR3APIApp.Controllers
             results.Type = Bundle.BundleType.History;
             results.Total = history.Count();
             results.Link = new System.Collections.Generic.List<Bundle.LinkComponent>();
-            results.Link.Add(new Bundle.LinkComponent() { Url = Request.RequestUri.AbsoluteUri, Relation = "self" });
+            results.Link.Add(new Bundle.LinkComponent() { Url = Request.RequestUri.GetLeftPart(UriPartial.Authority), Relation = "self" });
             results.Entry = new System.Collections.Generic.List<Bundle.EntryComponent>();
             //Add History Items to Bundle
             foreach (string h in history)
             {
                 var r = (Resource)jsonparser.Parse(h, FhirHelper.ResourceTypeFromString(resource));
-                results.Entry.Add(new Bundle.EntryComponent() { Resource = r });
+                results.Entry.Add(new Bundle.EntryComponent() { Resource = r,FullUrl = Request.RequestUri.AbsoluteUri});
                
             }
            
