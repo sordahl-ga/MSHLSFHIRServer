@@ -323,6 +323,7 @@ namespace FHIR3APIApp.Controllers
             //Add History Items to Bundle
             foreach (string h in history)
             {
+                //todo
                 var r = (Resource)jsonparser.Parse(h, FhirHelper.ResourceTypeFromString(resource));
                 results.Entry.Add(new Bundle.EntryComponent() { Resource = r, FullUrl = FhirHelper.GetFullURL(Request, r) });
                
