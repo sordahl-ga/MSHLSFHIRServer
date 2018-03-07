@@ -58,7 +58,11 @@ namespace FHIR3APIApp.Providers
         /// The DBName for DocumentDB
         /// </summary>
         private static readonly string DBName = CloudConfigurationManager.GetSetting("FHIRDB");
-        
+        /// <summary>
+        /// The Througput offer for the FHIRDB
+        /// </summary>
+        private static readonly string DBDTU = CloudConfigurationManager.GetSetting("FHIRDBTHROUHPUT");
+
         private ConcurrentDictionary<string, string> collection = new ConcurrentDictionary<string, string>();
         private bool databasecreated = false;
         private FhirJsonParser parser = null;
@@ -147,7 +151,7 @@ namespace FHIR3APIApp.Providers
                     await this.client.CreateDocumentCollectionAsync(
                         UriFactory.CreateDatabaseUri(databaseName),
                         collectionInfo,
-                        new RequestOptions { OfferThroughput = 400 });
+                        new RequestOptions { OfferThroughput = int.Parse(DBDTU) });
 
                     //Trace.TraceInformation("Created {0}", collectionName);
                     if (collection.TryAdd(collectionName, collectionName)) ;//Trace.TraceInformation("Added " + collectionName + " to db collections");
