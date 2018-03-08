@@ -33,13 +33,28 @@ namespace FHIR3APIApp.Providers
 {
     public class ResourceThreadContext
     {
-        public ResourceThreadContext(Resource r, string s)
+        public ResourceThreadContext(CloudBlobContainer blob,Resource r, string s)
         {
+            this.BlobContainer = blob;
             this.Resource = r;
             this.Serialized = s;
         }
+        public CloudBlobContainer BlobContainer { get; set; }
         public Resource Resource { get; set; }
         public string Serialized { get; set; }
+        public void ThreadPoolCallback(Object context)
+        {
+            var blob = this.BlobContainer;
+            var r = this.Resource;
+            var s = this.Serialized;
+            var resource = System.Text.Encoding.UTF8.GetBytes(s);
+            CloudBlockBlob blockBlob = blob.GetBlockBlobReference(@Enum.GetName(typeof(ResourceType), r.ResourceType) + "/" + r.Id + "/" + r.Meta.VersionId);
+            using (var stream = new MemoryStream(resource, writable: false))
+            {
+                blockBlob.UploadFromStream(stream);
+            }
+            
+        }
     }
     public class AzureBlobHistoryStore : IFHIRHistoryStore
     {
@@ -54,24 +69,14 @@ namespace FHIR3APIApp.Providers
                 blob = blobClient.GetContainerReference(CONTAINER);
                 blob.CreateIfNotExists();
         }
-        private void ThreadPoolCallback(Object context)
-        {
-            ResourceThreadContext rc = (ResourceThreadContext)context;
-            var r = rc.Resource;
-            var s = rc.Serialized;
-            var resource = System.Text.Encoding.UTF8.GetBytes(s);
-            CloudBlockBlob blockBlob = blob.GetBlockBlobReference(@Enum.GetName(typeof(ResourceType), r.ResourceType) + "/" + r.Id + "/" + r.Meta.VersionId);
-            using (var stream = new MemoryStream(resource, writable: false))
-            {
-                blockBlob.UploadFromStreamAsync(stream);
-            }
-        }
+       
         public string InsertResourceHistoryItem(Resource r)
         {
             try
             {
                 string s = FhirSerializer.SerializeToJson(r);
-                ThreadPool.QueueUserWorkItem(this.ThreadPoolCallback, new ResourceThreadContext(r, s) );
+                ResourceThreadContext rtc = new ResourceThreadContext(blob, r, s);
+                ThreadPool.QueueUserWorkItem(rtc.ThreadPoolCallback,1);
                 return s;
             }
             catch (Exception e)
