@@ -21,11 +21,16 @@ using System.Threading.Tasks;
 using System.Net.Http;
 using System.IO;
 using Hl7.Fhir.Model;
+using System.Collections.Specialized;
+using Newtonsoft.Json.Linq;
+using Hl7.Fhir.Serialization;
+using FHIR3APIApp.Providers;
+
 namespace FHIR3APIApp.Utils
 {
     public static class FhirHelper
     {
-        
+
         public static CapabilityStatement GenerateCapabilityStatement(String url)
         {
             CapabilityStatement cs = new CapabilityStatement();
@@ -44,12 +49,12 @@ namespace FHIR3APIApp.Utils
             cc.Telecom.Add(new ContactPoint(ContactPoint.ContactPointSystem.Email, ContactPoint.ContactPointUse.Work, "stordahl@microsoft.com"));
             cs.Contact.Add(cc);
             cs.Kind = CapabilityStatement.CapabilityStatementKind.Instance;
-            cs.Date = "2018-02-01";
+            cs.Date = "2018-03-08";
             cs.Description = new Markdown("This is the FHIR capability statement for the HLS Team API Application FHIR Server 3.0.1");
             cs.Software = new CapabilityStatement.SoftwareComponent();
             cs.Software.Name = "Experimental Microsoft HLS Team FHIR Server API App";
-            cs.Software.Version="0.9.0";
-            cs.Software.ReleaseDate = "2018-02-23";
+            cs.Software.Version = "0.9.1";
+            cs.Software.ReleaseDate = "2018-03-08";
             cs.Implementation = new CapabilityStatement.ImplementationComponent();
             cs.Implementation.Description = "MSHLS Experimental FHIR Server";
             int endpos = url.ToLower().LastIndexOf("/metadata");
@@ -89,16 +94,16 @@ namespace FHIR3APIApp.Utils
             cs.Rest.Add(rc);
             return cs;
         }
-    public static Type ResourceTypeFromString(string resourceType)
-    {
-        return Type.GetType("Hl7.Fhir.Model." + resourceType + ",Hl7.Fhir.STU3.Core");
-    }
-    public static string GetResourceTypeString(Resource r)
-    {
+        public static Type ResourceTypeFromString(string resourceType)
+        {
+            return Type.GetType("Hl7.Fhir.Model." + resourceType + ",Hl7.Fhir.STU3.Core");
+        }
+        public static string GetResourceTypeString(Resource r)
+        {
             return Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType);
-    }
-    public static string GetFullURL(HttpRequestMessage request,Resource r)
-    {
+        }
+        public static string GetFullURL(HttpRequestMessage request, Resource r)
+        {
             try
             {
                 Uri baseUri = new Uri(request.RequestUri.AbsoluteUri.Replace(request.RequestUri.PathAndQuery, String.Empty));
@@ -109,21 +114,21 @@ namespace FHIR3APIApp.Utils
             {
                 return null;
             }
-    }
-    public static Patient PatientName(string standardname,HumanName.NameUse? use,Patient pat)
+        }
+        public static Patient PatientName(string standardname, HumanName.NameUse? use, Patient pat)
         {
             string[] family = standardname.Split(',');
             string[] given = null;
             if (family.Length > 1)
             {
                 given = family[1].Split(' ');
-                      
+
             }
-            if (pat.Name==null) pat.Name = new List<HumanName>();
-            pat.Name.Add(new HumanName() {Use=use,Family=family[0],Given = given});
+            if (pat.Name == null) pat.Name = new List<HumanName>();
+            pat.Name.Add(new HumanName() { Use = use, Family = family[0], Given = given });
             return pat;
         }
-        public static string AppendWhereClause(string wc,string expression)
+        public static string AppendWhereClause(string wc, string expression)
         {
             string retVal = wc;
             if (String.IsNullOrEmpty(wc)) retVal = " where " + expression;
@@ -136,7 +141,7 @@ namespace FHIR3APIApp.Utils
             Identifier retVal = null;
             foreach (Identifier i in ids)
             {
-                if (i.System.Equals(system, StringComparison.CurrentCultureIgnoreCase) && i.Type.Coding[0].Code.Equals(type,StringComparison.CurrentCultureIgnoreCase))
+                if (i.System.Equals(system, StringComparison.CurrentCultureIgnoreCase) && i.Type.Coding[0].Code.Equals(type, StringComparison.CurrentCultureIgnoreCase))
                 {
                     retVal = i;
                     break;
@@ -144,7 +149,7 @@ namespace FHIR3APIApp.Utils
             }
             return retVal;
         }
-     
+
         public static Resource StripAttachment(Resource source)
         {
             foreach (var prop in source.GetType().GetProperties())
@@ -163,6 +168,62 @@ namespace FHIR3APIApp.Utils
                     return sr.ReadToEnd();
                 }
             }
+        }
+        public static async Task<List<Resource>> ProcessIncludes(Resource source, NameValueCollection parms, IFHIRStore store)
+        {
+            var retVal = new List<Resource>();
+            string includeparm = parms["_include"];
+            if (!string.IsNullOrEmpty(includeparm))
+            {
+                JObject j = JObject.Parse(FhirSerializer.SerializeToJson(source));
+                string[] incs = includeparm.Split(',');
+                foreach (string t in incs)
+                {
+                    bool isinstance = false;
+                    string[] s = t.Split(':');
+                    if (s.Length > 1)
+                    {
+                        var prop = s[1];
+                        JToken x = null;
+                        try
+                        {
+                            if (prop.Equals("substance"))
+                            {
+                                x = j["suspectEntity"];
+                                isinstance = true;
+                            }
+                            else
+                            {
+                                x = j[prop];
+
+                            }
+                        }
+                        catch (Exception)
+                        {
+
+                        }
+                        if (x != null)
+                        {
+                                for (int i = 0; i < x.Count(); i++)
+                                {
+                                    var x1 = (x.Type == JTokenType.Array ? x[i] : x);
+                                    string z = (isinstance ? x1["instance"]["reference"].ToString() : x1["reference"].ToString());
+                                    string[] split = z.Split('/');
+                                    if (split.Length > 1)
+                                    {
+                                        var a1 = await store.LoadFHIRResource(split[1], split[0]);
+                                        if (a1 != null) retVal.Add(a1);
+                                    }
+                                }
+                         
+                        }
+                    }
+
+
+                }
+
+            }
+            return retVal;
         }
     }
 }

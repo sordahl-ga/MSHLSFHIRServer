@@ -54,4 +54,4 @@ MedicationStatement.subject.default=LOWER(c.subject.reference)='~v0~'
 AdverseEvent.patient=string
 AdverseEvent.patient.default=LOWER(c.subject.reference)='patient/~v0~'
 AdverseEvent.subject=string
-AdverseEvent.subject.default=LOWER(c.subject.reference)='~v0~'
+AdverseEvent.subject.default=LOWER(c.subject.reference)='patient/~v0~'

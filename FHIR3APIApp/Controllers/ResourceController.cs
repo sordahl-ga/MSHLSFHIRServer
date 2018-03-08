@@ -186,8 +186,18 @@ namespace FHIR3APIApp.Controllers
             else
             {
                 NameValueCollection nvc = HttpUtility.ParseQueryString(Request.RequestUri.Query);
-                string query = FhirParmMapper.Instance.GenerateQuery(storage,resource, nvc);
-                var retVal = await storage.QueryFHIRResource(query, resource);
+                string _id = nvc["_id"];
+                IEnumerable<Resource> retVal = null;
+                if (string.IsNullOrEmpty(_id))
+                {
+                    string query = FhirParmMapper.Instance.GenerateQuery(storage, resource, nvc);
+                    retVal = await storage.QueryFHIRResource(query, resource);
+                } else
+                {
+                    retVal = new List<Resource>();
+                    var r = await storage.LoadFHIRResource(_id, resource);
+                    if (r != null) ((List<Resource>)retVal).Add(r);
+                }
                 Bundle results = new Bundle();
                 results.Id = Guid.NewGuid().ToString();
                 results.Type = Bundle.BundleType.Searchset;
@@ -195,9 +205,20 @@ namespace FHIR3APIApp.Controllers
                 results.Link = new System.Collections.Generic.List<Bundle.LinkComponent>();
                 results.Link.Add(new Bundle.LinkComponent() { Url = Request.RequestUri.AbsoluteUri, Relation = "self" });
                 results.Entry = new System.Collections.Generic.List<Bundle.EntryComponent>();
+                Bundle.SearchComponent match = new Bundle.SearchComponent();
+                match.Mode = Bundle.SearchEntryMode.Match;
+                Bundle.SearchComponent include = new Bundle.SearchComponent();
+                include.Mode = Bundle.SearchEntryMode.Include;
                 foreach (Resource p in retVal)
                 {
-                    results.Entry.Add(new Bundle.EntryComponent() { Resource = p, FullUrl = FhirHelper.GetFullURL(Request, p) });
+                   
+
+                    results.Entry.Add(new Bundle.EntryComponent() { Resource = p, FullUrl = FhirHelper.GetFullURL(Request, p), Search = match});
+                    var includes = await FhirHelper.ProcessIncludes(p, nvc, storage);
+                    foreach(Resource r in includes)
+                    {
+                        results.Entry.Add(new Bundle.EntryComponent() { Resource = r, FullUrl = FhirHelper.GetFullURL(Request, r), Search = include });
+                    }
                 }
 
                 if (retVal != null)
