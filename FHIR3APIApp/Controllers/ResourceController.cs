@@ -130,17 +130,17 @@ namespace FHIR3APIApp.Controllers
                 if (p.ResourceType==ResourceType.Bundle && ((Bundle)p).Type==Bundle.BundleType.Batch)
                 {
                     Bundle source = (Bundle)p;
-                    Bundle results = new Bundle();
+                    /*Bundle results = new Bundle();
                     results.Id = Guid.NewGuid().ToString();
                     results.Type = Bundle.BundleType.Searchset;
                     results.Total = source.Entry.Count();
                     results.Link = new System.Collections.Generic.List<Bundle.LinkComponent>();
                     results.Link.Add(new Bundle.LinkComponent() { Url = Request.RequestUri.AbsoluteUri, Relation = "original" });
-                    results.Entry = new System.Collections.Generic.List<Bundle.EntryComponent>();
+                    results.Entry = new System.Collections.Generic.List<Bundle.EntryComponent>();*/
                     foreach (Bundle.EntryComponent ec in source.Entry)
                     {
                         var rslt = await ProcessSingleResource(ec.Resource, Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), ec.Resource.ResourceType));
-                        results.Entry.Add(new Bundle.EntryComponent() { Resource = rslt.Resource, FullUrl = FhirHelper.GetFullURL(Request, rslt.Resource) });
+                        //results.Entry.Add(new Bundle.EntryComponent() { Resource = rslt.Resource, FullUrl = FhirHelper.GetFullURL(Request, rslt.Resource) });
                     }
                 }
                 return response;

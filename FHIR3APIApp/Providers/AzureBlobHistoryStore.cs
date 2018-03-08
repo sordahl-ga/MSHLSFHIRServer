@@ -20,14 +20,27 @@ using System.Web;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
 using Microsoft.Azure;
+using System.Threading.Tasks;
+using System.Threading;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.WindowsAzure.Storage.DataMovement;
 using System.IO;
 using System.Diagnostics;
 
 namespace FHIR3APIApp.Providers
 {
+    public class ResourceThreadContext
+    {
+        public ResourceThreadContext(Resource r, string s)
+        {
+            this.Resource = r;
+            this.Serialized = s;
+        }
+        public Resource Resource { get; set; }
+        public string Serialized { get; set; }
+    }
     public class AzureBlobHistoryStore : IFHIRHistoryStore
     {
         private static string CONTAINER = "fhirhistory";
@@ -41,17 +54,24 @@ namespace FHIR3APIApp.Providers
                 blob = blobClient.GetContainerReference(CONTAINER);
                 blob.CreateIfNotExists();
         }
+        private void ThreadPoolCallback(Object context)
+        {
+            ResourceThreadContext rc = (ResourceThreadContext)context;
+            var r = rc.Resource;
+            var s = rc.Serialized;
+            var resource = System.Text.Encoding.UTF8.GetBytes(s);
+            CloudBlockBlob blockBlob = blob.GetBlockBlobReference(@Enum.GetName(typeof(ResourceType), r.ResourceType) + "/" + r.Id + "/" + r.Meta.VersionId);
+            using (var stream = new MemoryStream(resource, writable: false))
+            {
+                blockBlob.UploadFromStreamAsync(stream);
+            }
+        }
         public string InsertResourceHistoryItem(Resource r)
         {
             try
             {
                 string s = FhirSerializer.SerializeToJson(r);
-                var resource = System.Text.Encoding.UTF8.GetBytes(s);
-                CloudBlockBlob blockBlob = blob.GetBlockBlobReference(@Enum.GetName(typeof(ResourceType), r.ResourceType) + "/" + r.Id + "/" + r.Meta.VersionId);
-                using (var stream = new MemoryStream(resource, writable: false))
-                {
-                    blockBlob.UploadFromStream(stream);
-                }
+                ThreadPool.QueueUserWorkItem(this.ThreadPoolCallback, new ResourceThreadContext(r, s) );
                 return s;
             }
             catch (Exception e)
