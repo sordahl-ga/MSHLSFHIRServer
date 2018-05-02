@@ -30,6 +30,18 @@ namespace FHIR3APIApp.Utils
 {
     public static class FhirHelper
     {
+        public static string URLBase64Encode(string plainText)
+        {
+            if (plainText == null) return null;
+            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
+            return HttpServerUtility.UrlTokenEncode(plainTextBytes);
+        }
+
+        public static string URLBase64Decode(string base64EncodedData)
+        {
+            if (base64EncodedData == null) return null;
+            return System.Text.Encoding.UTF8.GetString(HttpServerUtility.UrlTokenDecode(base64EncodedData));
+        }
 
         public static CapabilityStatement GenerateCapabilityStatement(String url)
         {

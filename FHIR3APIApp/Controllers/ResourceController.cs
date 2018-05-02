@@ -187,23 +187,49 @@ namespace FHIR3APIApp.Controllers
             {
                 NameValueCollection nvc = HttpUtility.ParseQueryString(Request.RequestUri.Query);
                 string _id = nvc["_id"];
+                string _nextpage =nvc["_nextpage"];
+                string _count = nvc["_count"];
+                if (_count==null) _count = "100";
+                string _querytotal = nvc["_querytotal"];
+                if (_querytotal == null) _querytotal = "-1";
                 IEnumerable<Resource> retVal = null;
+                ResourceQueryResult searchrslt = null;
+                int iqueryTotal = 0;
                 if (string.IsNullOrEmpty(_id))
                 {
-                    string query = FhirParmMapper.Instance.GenerateQuery(storage, resource, nvc);
-                    retVal = await storage.QueryFHIRResource(query, resource);
+                    string query = FhirParmMapper.Instance.GenerateQuery(storage, resource,nvc);
+                    searchrslt = await storage.QueryFHIRResource(query, resource, int.Parse(_count), _nextpage,long.Parse(_querytotal));
+                    retVal = searchrslt.Resources;
+                    iqueryTotal = (int)searchrslt.Total;
+
                 } else
                 {
                     retVal = new List<Resource>();
                     var r = await storage.LoadFHIRResource(_id, resource);
                     if (r != null) ((List<Resource>)retVal).Add(r);
+                    iqueryTotal = retVal.Count();
                 }
+                var baseurl = Request.RequestUri.Scheme + "://" + Request.RequestUri.Authority + "/" + resource;
                 Bundle results = new Bundle();
                 results.Id = Guid.NewGuid().ToString();
                 results.Type = Bundle.BundleType.Searchset;
-                results.Total = retVal.Count();
+                results.Total = iqueryTotal;
                 results.Link = new System.Collections.Generic.List<Bundle.LinkComponent>();
-                results.Link.Add(new Bundle.LinkComponent() { Url = Request.RequestUri.AbsoluteUri, Relation = "self" });
+                NameValueCollection qscoll = Request.RequestUri.ParseQueryString();
+                qscoll.Remove("_count");
+                qscoll.Remove("_querytotal");
+                qscoll.Add("_querytotal", searchrslt.Total.ToString());
+                qscoll.Add("_count", _count);
+                
+                results.Link.Add(new Bundle.LinkComponent() { Url = baseurl + "?" + qscoll.ToString(), Relation = "self" });
+                
+                if (searchrslt.ContinuationToken != null)
+                {
+                    qscoll.Remove("_nextpage");
+                    qscoll.Add("_nextpage", searchrslt.ContinuationToken);
+                    results.Link.Add(new Bundle.LinkComponent() { Url = baseurl + "?" + qscoll.ToString(), Relation = "next" });
+                }
+                
                 results.Entry = new System.Collections.Generic.List<Bundle.EntryComponent>();
                 Bundle.SearchComponent match = new Bundle.SearchComponent();
                 match.Mode = Bundle.SearchEntryMode.Match;

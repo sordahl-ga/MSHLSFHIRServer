@@ -20,6 +20,8 @@ using System.Web.Http;
 using FHIR3APIApp.Utils;
 using FHIR3APIApp.Providers;
 using Microsoft.Practices.Unity;
+using Unity;
+using Unity.Lifetime;
 
 namespace FHIR3APIApp
 {

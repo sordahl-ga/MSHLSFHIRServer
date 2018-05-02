@@ -27,7 +27,7 @@ using System.Net;
 using Newtonsoft.Json.Linq;
 using Hl7.Fhir.Serialization;
 using FHIR3APIApp.Utils;
-
+using Microsoft.Azure.Documents.Linq;
 
 namespace FHIR3APIApp.Providers
 {
@@ -63,8 +63,8 @@ namespace FHIR3APIApp.Providers
         /// </summary>
         private static readonly string DBDTU = CloudConfigurationManager.GetSetting("FHIRDBTHROUHPUT");
 
-        private ConcurrentDictionary<string, string> collection = new ConcurrentDictionary<string, string>();
         private bool databasecreated = false;
+        private ConcurrentDictionary<string, string> collection = new ConcurrentDictionary<string, string>();
         private FhirJsonParser parser = null;
         
         public string SelectAllQuery
@@ -82,85 +82,58 @@ namespace FHIR3APIApp.Providers
                 return historystore;
             }
         }
-        
+        private Hl7.Fhir.Model.Resource ConvertDocument(Document doc)
+        {
+            var obj = (JObject)(dynamic)doc;
+            obj.Remove("_rid");
+            obj.Remove("_self");
+            obj.Remove("_etag");
+            obj.Remove("_attachments");
+            obj.Remove("_ts");
+            string rt = (String)obj["resourceType"];
+            Hl7.Fhir.Model.Resource t = (Hl7.Fhir.Model.Resource)parser.Parse(obj.ToString(Newtonsoft.Json.Formatting.None), FhirHelper.ResourceTypeFromString(rt));
+            return t;
+        }
         public AzureDocDBFHIRStore(IFHIRHistoryStore history) 
         {
-            this.client = new DocumentClient(new Uri(EndpointUri), PrimaryKey);
+            this.client = new DocumentClient(new Uri(EndpointUri), PrimaryKey, new ConnectionPolicy
+            {
+                ConnectionMode = ConnectionMode.Direct,
+                ConnectionProtocol = Protocol.Tcp
+            });
             historystore = history;
             ParserSettings ps = new ParserSettings();
             ps.AcceptUnknownMembers = true;
             ps.AllowUnrecognizedEnums = true;
+            
             parser = new FhirJsonParser(ps);
-           
-   
+            
+
+
         }    
        
-        private async Task CreateDatabaseIfNotExists(string databaseName)
+        private async Task<ResourceResponse<Database>> CreateDatabaseIfNotExists(string databaseName)
         {
-            // Check to verify a database with the id does not exist
-            if (databasecreated) return; 
-            try
-            {
-                await this.client.ReadDatabaseAsync(UriFactory.CreateDatabaseUri(databaseName));
-               
-            }
-            catch (DocumentClientException de)
-            {
-                // If the database does not exist, create a new database
-                if (de.StatusCode == HttpStatusCode.NotFound)
-                {
-                    await this.client.CreateDatabaseAsync(new Database { Id = databaseName });
-                    databasecreated = true;
-                    //Trace.TraceInformation("Created database {0}", databaseName);
-                }
-                else
-                {
-                    throw;
-                }
-            }
-            catch (Exception e)
-            {
-                var s = e.Message;
-            }
+            if (databasecreated) return null;
+            var x = await this.client.CreateDatabaseIfNotExistsAsync(new Database { Id = databaseName });
+            databasecreated = true;
+            return x;
+           
         }
-        private async Task CreateDocumentCollectionIfNotExists(string databaseName, string collectionName)
+        private async Task<IResourceResponse<DocumentCollection>> CreateDocumentCollectionIfNotExists(string databaseName, string collectionName)
         {
-            try
-            {
-                if (collection.ContainsKey(collectionName)) return;
-                await CreateDatabaseIfNotExists(DBName);
-                await this.client.ReadDocumentCollectionAsync(UriFactory.CreateDocumentCollectionUri(databaseName, collectionName));
-                if (collection.TryAdd(collectionName, collectionName)) ;//Trace.TraceInformation("Added " + collectionName + " to db collections");
-               
-            }
-            catch (DocumentClientException de)
-            {
-                // If the document collection does not exist, create a new collection
-                if (de.StatusCode == HttpStatusCode.NotFound)
-                {
-                    DocumentCollection collectionInfo = new DocumentCollection();
-                    collectionInfo.Id = collectionName;
-
-                    // Optionally, you can configure the indexing policy of a collection. Here we configure collections for maximum query flexibility 
-                    // including string range queries. 
-                    collectionInfo.IndexingPolicy = new IndexingPolicy(new RangeIndex(DataType.String) { Precision = -1 });
-                    collectionInfo.IndexingPolicy.IndexingMode = IndexingMode.Consistent;
-
-                    // DocumentDB collections can be reserved with throughput specified in request units/second. 1 RU is a normalized request equivalent to the read
-                    // of a 1KB document.  Here we create a collection with 400 RU/s. 
-                    await this.client.CreateDocumentCollectionAsync(
-                        UriFactory.CreateDatabaseUri(databaseName),
-                        collectionInfo,
-                        new RequestOptions { OfferThroughput = int.Parse(DBDTU) });
-
-                    //Trace.TraceInformation("Created {0}", collectionName);
-                    if (collection.TryAdd(collectionName, collectionName)) ;//Trace.TraceInformation("Added " + collectionName + " to db collections");
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            if (collection.ContainsKey(collectionName)) return null;
+            await CreateDatabaseIfNotExists(databaseName);
+            DocumentCollection collectionDefinition = new DocumentCollection();
+                collectionDefinition.Id = collectionName;
+                collectionDefinition.IndexingPolicy = new IndexingPolicy(new RangeIndex(DataType.String) { Precision = -1 });
+            
+                var x  = await client.CreateDocumentCollectionIfNotExistsAsync(
+                    UriFactory.CreateDatabaseUri(databaseName),
+                    collectionDefinition,
+                    new RequestOptions { OfferThroughput = int.Parse(DBDTU) });
+                collection.TryAdd(collectionName, collectionName);
+            return x;
         }
         private async Task<Microsoft.Azure.Documents.Document> LoadFHIRResourceObject(string databaseName, string collectionName, string identity)
         {
@@ -240,34 +213,42 @@ namespace FHIR3APIApp.Providers
             await CreateDocumentCollectionIfNotExists(DBName, resourceType);
             var result = await LoadFHIRResourceObject(DBName, resourceType, identity);
             if (result == null) return null;
-
-            var retVal = (JObject)(dynamic)result;
-            var t = parser.Parse(retVal.ToString(Newtonsoft.Json.Formatting.None),FhirHelper.ResourceTypeFromString(resourceType));
-            return (Hl7.Fhir.Model.Resource) t;
+            return ConvertDocument(result);
         }
 
-        public async Task<IEnumerable<Hl7.Fhir.Model.Resource>> QueryFHIRResource(string query, string resourceType)
+        public async Task<ResourceQueryResult> QueryFHIRResource(string query, string resourceType,int count=100,string continuationToken=null,long querytotal=-1)
         {
 
             
-            List<Hl7.Fhir.Model.Resource> retVal = new List<Hl7.Fhir.Model.Resource>();
-            try
-            {
+                List<Hl7.Fhir.Model.Resource> retVal = new List<Hl7.Fhir.Model.Resource>();
                 await CreateDocumentCollectionIfNotExists(DBName, resourceType);
-                var found = client.CreateDocumentQuery<JObject>(UriFactory.CreateDocumentCollectionUri(DBName, resourceType),
-                    query).AsEnumerable();
-                
-                foreach (JObject obj in found)
+                var options = new FeedOptions
+                { 
+                    MaxItemCount = count,
+                    RequestContinuation = Utils.FhirHelper.URLBase64Decode(continuationToken)                  
+                };
+                var collection = UriFactory.CreateDocumentCollectionUri(DBName, resourceType);
+                var docq = client.CreateDocumentQuery<Document>(collection, query, options).AsDocumentQuery();
+                var rslt = await docq.ExecuteNextAsync<Document>();
+                //Get Totalcount first
+                if (querytotal < 0)
                 {
-                    retVal.Add((Hl7.Fhir.Model.Resource) parser.Parse(obj.ToString(Newtonsoft.Json.Formatting.None), FhirHelper.ResourceTypeFromString(resourceType)));
+                    //var totalquery = query.Replace("select value c", "select value count(1)");
+                    //querytotal= (long)client.CreateDocumentQuery(collection, totalquery).AsEnumerable().First();
+                    querytotal = rslt.Count;
                 }
-                return retVal;
-            }
-            catch (Exception de)
-            {
-                //Trace.TraceError("Error querying resource type: {0} Query: {1} Message: {2}", resourceType,query,de.Message);
-                throw;
-            }
+                foreach (Document doc in rslt)
+                {
+                     retVal.Add(ConvertDocument(doc));
+                }
+                return new ResourceQueryResult(retVal, querytotal, Utils.FhirHelper.URLBase64Encode(rslt.ResponseContinuation));
+            
+        }
+
+        public async Task<bool> Initialize(List<object> parms)
+        {
+            await client.OpenAsync();
+            return true;
         }
     }
 }

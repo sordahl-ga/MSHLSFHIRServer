@@ -7,9 +7,9 @@
 #-----------------------------------------------------------------------------------------------------------------------------------
 Patient.name=string
 Patient.name.join=JOIN names in c.name
-Patient.name.default=STARTSWITH(names.family,'~v0~')
-Patient.name.contains=CONTAINS(names.family,'~v0~')
-Patient.name.exact=names.family='~v0~'
+Patient.name.default=STARTSWITH(LOWER((names.family),LOWER('~v0~'))
+Patient.name.contains=CONTAINS(LOWER(names.family),LOWER('~v0~'))
+Patient.name.exact=LOWER(names.family)=LOWER('~v0~')
 Patient.identifier=string
 Patient.identifier.join=JOIN ids in c.identifier
 Patient.identifier.default=ids.system='~v0~' AND ids["value"]='~v1~'
@@ -18,9 +18,9 @@ Patient.given.join=JOIN names in c.name
 Patient.given.default=ARRAY_CONTAINS(names.given,'~v0~')
 Patient.family=string
 Patient.family.join=JOIN names in c.name
-Patient.family.default=STARTSWITH(names.family,'~v0~')
-Patient.family.contains=CONTAINS(names.family,'~v0~')
-Patient.family.exact=names.family='~v0~'
+Patient.family.default=STARTSWITH(LOWER(names.family),LOWER('~v0~'))
+Patient.family.contains=CONTAINS(LOWER(names.family),LOWER('~v0~'))
+Patient.family.exact=LOWER(names.family)=LOWER('~v0~')
 Patient.gender=string
 Patient.gender.default=c.gender='~v0~'
 Patient.gender.exact=c.gender='~v0~'
@@ -55,3 +55,5 @@ AdverseEvent.patient=string
 AdverseEvent.patient.default=LOWER(c.subject.reference)='patient/~v0~'
 AdverseEvent.subject=string
 AdverseEvent.subject.default=LOWER(c.subject.reference)='patient/~v0~'
+Condition.subject=string
+Condition.subject.default=LOWER(c.subject.reference)='patient/~v0~'

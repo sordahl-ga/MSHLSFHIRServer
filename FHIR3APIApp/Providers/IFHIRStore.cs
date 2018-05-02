@@ -22,10 +22,11 @@ namespace FHIR3APIApp.Providers
 {
     public interface IFHIRStore
     {
-        System.Threading.Tasks.Task<IEnumerable<Resource>> QueryFHIRResource(string query,string resourceType);
+        System.Threading.Tasks.Task<ResourceQueryResult> QueryFHIRResource(string query,string resourceType,int pagesize=100,string continuationToken=null,long querytotal=-1);
         System.Threading.Tasks.Task<int> UpsertFHIRResource(Resource r);
         System.Threading.Tasks.Task<Resource> LoadFHIRResource(string identity,string resourceType);
         System.Threading.Tasks.Task<bool> DeleteFHIRResource(Resource r);
+        System.Threading.Tasks.Task<bool> Initialize(List<Object> parms);
         string SelectAllQuery { get; }
         IFHIRHistoryStore HistoryStore { get; }
  
