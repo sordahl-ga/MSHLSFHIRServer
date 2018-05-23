@@ -6,32 +6,32 @@
 			"defaultValue" : "my",
 			"type" : "String"
 		},
-        "databaseAccounts_docdb_name": {
-            "defaultValue": null,
-            "type": "String"
-        },
-        "sites_fhirserver_name": {
-            "defaultValue": "fhirserver",
-            "type": "String"
-        },
+      "databaseAccounts_docdb_name": {
+        "defaultValue": "fhirdb",
+        "type": "String"
+      },
+      "sites_fhirserver_name": {
+        "defaultValue": "fhirsrv",
+        "type": "String"
+      },
         "config_web_name": {
             "defaultValue": "web",
             "type": "String"
         },
-        "storageAccounts_fhirstorage_name": {
-            "defaultValue": "fhirstorage",
-            "type": "String"
-        },
-        "serverfarms_ServicePlan_name": {
-            "defaultValue": "fhirserviceplan",
-            "type": "String"
-        },
+      "storageAccounts_fhirstorage_name": {
+        "defaultValue": "fhirstor",
+        "type": "String"
+      },
+      "serverfarms_ServicePlan_name": {
+        "defaultValue": "fhirsrvpl",
+        "type": "String"
+      },
         "fhirstoragelocation": {
-              "defaultValue": "East US 2",
+              "defaultValue": "East US",
              "type":"String"
         },
         "fhirweblocation": {
-              "defaultValue": "Central US",
+              "defaultValue": "East US",
               "type":"String"
         },
 		"repoURL": {
