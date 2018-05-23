@@ -1,0 +1,413 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+		"deployprefix":{
+			"defaultValue" : "my",
+			"type" : "String"
+		},
+        "databaseAccounts_docdb_name": {
+            "defaultValue": null,
+            "type": "String"
+        },
+        "sites_fhirserver_name": {
+            "defaultValue": "fhirserver",
+            "type": "String"
+        },
+        "config_web_name": {
+            "defaultValue": "web",
+            "type": "String"
+        },
+        "storageAccounts_fhirstorage_name": {
+            "defaultValue": "fhirstorage",
+            "type": "String"
+        },
+        "serverfarms_ServicePlan_name": {
+            "defaultValue": "fhirserviceplan",
+            "type": "String"
+        },
+        "fhirstoragelocation": {
+              "defaultValue": "East US 2",
+             "type":"String"
+        },
+        "fhirweblocation": {
+              "defaultValue": "Central US",
+              "type":"String"
+        },
+		"repoURL": {
+				"type": "string",
+				"defaultValue": "https://github.com/sordahl-ga/MSHLSFHIRServer",
+				"metadata": {
+					"description": "The URL for the GitHub repository that contains the project to deploy."
+				}
+		},
+		"branch": {
+				"type": "string",
+				"defaultValue": "master",
+				"metadata": {
+					"description": "The branch of the GitHub repository to use."
+				}
+		},
+		"enableauth": {
+				"type": "string",
+				"defaultValue": "false",
+				"metadata": {
+					"description": "Enable OAUTH authentication"
+				}
+		},
+		"tenent": {
+				"type": "string",
+				"defaultValue": "microsoft.onmicrosoft.com",
+				"metadata": {
+					"description": "AD Tenent Name (FQDN)"
+				}
+		},
+		"audience": {
+				"type": "string",
+				"defaultValue": "fhirserver.azurewebsites.net",
+				"metadata": {
+					"description": "OAUTH Audience (Service Principal)"
+				}
+		},
+		"fhirdbname": {
+				"type": "string",
+				"defaultValue": "FHIR3",
+				"metadata": {
+					"description": "Name of the FHIR DB in CosmosDB"
+				}
+		}
+    },
+    "variables": {
+		"deploysuffix":"[toLower(uniqueString(resourceGroup().id))]"
+	},
+    "resources": [
+        {
+            "comments": "DocumentDB (CosmosDB) Account",
+            "type": "Microsoft.DocumentDB/databaseAccounts",
+            "kind": "GlobalDocumentDB",
+            "name": "[concat(parameters('deployprefix'),parameters('databaseAccounts_docdb_name'),variables('deploysuffix'))]",
+            "apiVersion": "2015-04-08",
+            "location": "[parameters('fhirstoragelocation')]",
+            "tags": {
+                "defaultExperience": "DocumentDB"
+            },
+            "scale": null,
+            "properties": {
+                "databaseAccountOfferType": "Standard",
+                "consistencyPolicy": {
+                    "defaultConsistencyLevel": "Session",
+                    "maxIntervalInSeconds": 5,
+                    "maxStalenessPrefix": 100
+                },
+                "name": "[concat(parameters('deployprefix'),parameters('databaseAccounts_docdb_name'),variables('deploysuffix'))]"
+            },
+            "dependsOn": []
+        },
+		{
+            "comments": "Storage account for resource history",
+			"type": "Microsoft.Storage/storageAccounts",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "Storage",
+            "name": "[concat(parameters('deployprefix'),parameters('storageAccounts_fhirstorage_name'),variables('deploysuffix'))]",
+            "apiVersion": "2017-06-01",
+             "location": "[parameters('fhirstoragelocation')]",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                    "encryption": {
+                    "keySource": "Microsoft.Storage",
+                    "services": {
+                        "blob": {
+                            "enabled": true
+                        },
+                        "file": {
+                            "enabled": true
+                        }
+                    }
+                },
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "defaultAction": "Allow",
+                    "ipRules": [],
+                    "virtualNetworkRules": []
+                },
+                "supportsHttpsTrafficOnly": false
+            },
+            "dependsOn": []
+        },
+		{
+            "comments": "ServerFarm/Plan",
+            "type": "Microsoft.Web/serverfarms",
+            "sku": {
+                "name": "S1",
+                "tier": "Standard",
+                "size": "S1",
+                "family": "S",
+                "capacity": 1
+            },
+            "kind": "app",
+            "name": "[concat(parameters('deployprefix'),parameters('serverfarms_ServicePlan_name'),variables('deploysuffix'))]",
+            "apiVersion": "2016-09-01",
+           "location": "[parameters('fhirweblocation')]",
+            "scale": null,
+            "properties": {
+                "name": "[concat(parameters('deployprefix'),parameters('serverfarms_ServicePlan_name'),variables('deploysuffix'))]",
+                "workerTierName": null,
+                "adminSiteName": null,
+                "hostingEnvironmentProfile": null,
+                "perSiteScaling": false,
+                "reserved": false,
+                "targetWorkerCount": 0,
+                "targetWorkerSizeId": 0
+            },
+            "dependsOn": []
+         },
+		 {
+            "comments": "FHIR API Service Site",
+            "type": "Microsoft.Web/sites",
+            "kind": "api",
+            "name": "[concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'))]",
+            "apiVersion": "2016-08-01",
+           "location": "[parameters('fhirweblocation')]",
+            "tags": {
+                "hidden-related:/subscriptions/b11ec350-db26-42ae-8e4e-13be2a772b63/resourcegroups/nzfhirserver/providers/Microsoft.Web/serverfarms/ServicePlaned84054a-9ece": "empty"
+            },
+            "scale": null,
+            "properties": {
+                "enabled": true,
+                "hostNameSslStates": [
+                    {
+                        "name": "[concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'),'.azurewebsites.net')]",
+                        "sslState": "Disabled",
+                        "virtualIP": null,
+                        "thumbprint": null,
+                        "toUpdate": null,
+                        "hostType": "Standard"
+                    },
+                    {
+                        "name": "[concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'),'.scm.azurewebsites.net')]",
+                        "sslState": "Disabled",
+                        "virtualIP": null,
+                        "thumbprint": null,
+                        "toUpdate": null,
+                        "hostType": "Repository"
+                    }
+                ],
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', concat(parameters('deployprefix'),parameters('serverfarms_ServicePlan_name'),variables('deploysuffix')))]",
+                "reserved": false,
+                "siteConfig": null,
+                "scmSiteAlsoStopped": false,
+                "hostingEnvironmentProfile": null,
+                "clientAffinityEnabled": true,
+                "clientCertEnabled": false,
+                "hostNamesDisabled": false,
+                "containerSize": 0,
+                "dailyMemoryTimeQuota": 0,
+                "cloningInfo": null
+            },
+			"resources": [
+			   {
+					"apiVersion": "2015-08-01",
+					"name": "logs",
+					"type": "config",
+					 "dependsOn": [
+						"[resourceId('Microsoft.Web/sites', concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix')))]"
+					  ],
+				  "properties": {
+						"applicationLogs": {
+						  "fileSystem": {
+							"level": "Verbose",
+							"retentionInMb": 3
+						  }
+						},
+						"httpLogs": {
+						  "fileSystem": {
+							"retentionInMb": 40,
+							"enabled": false
+						  }
+						},
+						"failedRequestsTracing": {
+						  "enabled": false
+						},
+						"detailedErrorMessages": {
+						  "enabled": true
+						}
+				}
+			},
+				{
+					"apiVersion": "2015-08-01",
+					"name": "web",
+					"type": "sourcecontrols",
+					"dependsOn": [
+						"[resourceId('Microsoft.Web/sites', concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix')))]"
+					],
+					"properties": {
+						"RepoUrl": "[parameters('repoURL')]",
+						"branch": "[parameters('branch')]",
+						"IsManualIntegration": true
+					}
+				},
+				{
+						"apiVersion": "2015-08-01",
+						"type": "config",
+						"name": "appsettings",
+						"dependsOn": [
+							"[resourceId('Microsoft.Web/sites', concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix')))]",
+							"[resourceId('Microsoft.Web/sites/sourcecontrols', concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix')),'web')]",
+							"[resourceId('Microsoft.DocumentDB/databaseAccounts',concat(parameters('deployprefix'),parameters('databaseAccounts_docdb_name'),variables('deploysuffix')))]",
+							"[resourceId('Microsoft.Storage/storageAccounts',concat(parameters('deployprefix'),parameters('storageAccounts_fhirstorage_name'),variables('deploysuffix')))]"
+						],
+						"properties": {
+							"EnableAuth":"[parameters('enableauth')]",
+							"ida:Tenant":"[parameters('tenent')]",
+							"ida:Audience": "[parameters('audience')]",
+							"FHIRDB":"[parameters('fhirdbname')]",
+							"DBStoragePrimaryKey":"[listKeys(resourceId('Microsoft.DocumentDb/databaseAccounts', concat(parameters('deployprefix'),parameters('databaseAccounts_docdb_name'),variables('deploysuffix'))), '2015-04-08').primaryMasterKey]",
+							"DBStorageEndPointUri":"[concat('https://',parameters('deployprefix'),parameters('databaseAccounts_docdb_name'),variables('deploysuffix'),'.documents.azure.com:443/')]",
+							"StorageConnectionString":"[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('deployprefix'),parameters('storageAccounts_fhirstorage_name'),variables('deploysuffix'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts',concat(parameters('deployprefix'),parameters('storageAccounts_fhirstorage_name'),variables('deploysuffix'))), '2015-06-15').key1,';EndpointSuffix=core.windows.net')]"
+							}
+						
+				}
+			],
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', concat(parameters('deployprefix'),parameters('serverfarms_ServicePlan_name'),variables('deploysuffix')))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/b11ec350-db26-42ae-8e4e-13be2a772b63/resourceGroups/nzfhirserver/providers/Microsoft.Web/sites/nzfhirserver/config/web'.",
+            "type": "Microsoft.Web/sites/config",
+            "name": "[concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'), '/', parameters('config_web_name'))]",
+            "apiVersion": "2016-08-01",
+            "location": "[parameters('fhirweblocation')]",
+            "tags": {
+                "hidden-related:/subscriptions/b11ec350-db26-42ae-8e4e-13be2a772b63/resourcegroups/nzfhirserver/providers/Microsoft.Web/serverfarms/ServicePlaned84054a-9ece": "empty"
+            },
+            "scale": null,
+            "properties": {
+                "numberOfWorkers": 1,
+                "defaultDocuments": [
+                    "Default.htm",
+                    "Default.html",
+                    "Default.asp",
+                    "index.htm",
+                    "index.html",
+                    "iisstart.htm",
+                    "default.aspx",
+                    "index.php",
+                    "hostingstart.html"
+                ],
+                "netFrameworkVersion": "v4.0",
+                "phpVersion": "5.6",
+                "pythonVersion": "",
+                "nodeVersion": "",
+                "linuxFxVersion": "",
+                "requestTracingEnabled": false,
+                "remoteDebuggingEnabled": false,
+                "remoteDebuggingVersion": null,
+                "httpLoggingEnabled": false,
+                "logsDirectorySizeLimit": 35,
+                "detailedErrorLoggingEnabled": false,
+                "publishingUsername": "$fhirserver",
+                "publishingPassword": null,
+                "appSettings": null,
+                "metadata": null,
+                "connectionStrings": null,
+                "machineKey": null,
+                "handlerMappings": null,
+                "documentRoot": null,
+                 "use32BitWorkerProcess": true,
+                "webSocketsEnabled": false,
+                "alwaysOn": false,
+                "javaVersion": null,
+                "javaContainer": null,
+                "javaContainerVersion": null,
+                "appCommandLine": "",
+                "managedPipelineMode": "Integrated",
+                "virtualApplications": [
+                    {
+                        "virtualPath": "/",
+                        "physicalPath": "site\\wwwroot",
+                        "preloadEnabled": false,
+                        "virtualDirectories": null
+                    }
+                ],
+                "winAuthAdminState": 0,
+                "winAuthTenantState": 0,
+                "customAppPoolIdentityAdminState": false,
+                "customAppPoolIdentityTenantState": false,
+                "runtimeADUser": null,
+                "runtimeADUserPassword": null,
+                "loadBalancing": "LeastRequests",
+                "routingRules": [],
+                "experiments": {
+                    "rampUpRules": []
+                },
+                "limits": null,
+                "autoHealEnabled": false,
+                "autoHealRules": null,
+                "tracingOptions": null,
+                "vnetName": "",
+                "siteAuthEnabled": false,
+                "siteAuthSettings": {
+                    "enabled": null,
+                    "unauthenticatedClientAction": null,
+                    "tokenStoreEnabled": null,
+                    "allowedExternalRedirectUrls": null,
+                    "defaultProvider": null,
+                    "clientId": null,
+                    "clientSecret": null,
+                    "issuer": null,
+                    "allowedAudiences": null,
+                    "additionalLoginParams": null,
+                    "isAadAutoProvisioned": false,
+                    "googleClientId": null,
+                    "googleClientSecret": null,
+                    "googleOAuthScopes": null,
+                    "facebookAppId": null,
+                    "facebookAppSecret": null,
+                    "facebookOAuthScopes": null,
+                    "twitterConsumerKey": null,
+                    "twitterConsumerSecret": null,
+                    "microsoftAccountClientId": null,
+                    "microsoftAccountClientSecret": null,
+                    "microsoftAccountOAuthScopes": null
+                },
+                "cors": null,
+                "push": null,
+                "apiDefinition": null,
+                "autoSwapSlotName": null,
+                "localMySqlEnabled": false,
+                "ipSecurityRestrictions": null
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix')))]"
+            ]
+        },
+        {
+            "comments": "HostName bindings for fhirserver",
+            "type": "Microsoft.Web/sites/hostNameBindings",
+            "name": "[concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'),'/', parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'),'.azurewebsites.net')]",
+            "apiVersion": "2016-08-01",
+            "location": "[parameters('fhirweblocation')]",
+            "scale": null,
+            "properties": {
+                "siteName":"[concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'))]",
+                "domainId": null,
+                "hostNameType": "Verified"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix')))]"
+            ]
+        }
+      
+    ],
+	"outputs": {
+		"fhirserverurl": {
+			"type": "string",
+			"value": "[concat('https://',parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'),'.azurewebsites.net')]"
+		}
+	}
+}
