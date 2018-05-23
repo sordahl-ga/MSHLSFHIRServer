@@ -9,6 +9,11 @@ of the FHIR Server.  Note: OAUTH is not enabled by default.
 
 [![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://azuredeploy.net/)
 
+You can check deployment success by accessing the conformance statement of the newly deployed FHIRServer:
+```
+https://<fhirservername>.azurewebsites.net/metadata?_format=json
+```
+
 
 ## Authors
 
