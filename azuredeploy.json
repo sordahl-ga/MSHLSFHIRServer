@@ -135,7 +135,7 @@
                     "ipRules": [],
                     "virtualNetworkRules": []
                 },
-                "supportsHttpsTrafficOnly": false
+                "supportsHttpsTrafficOnly": true
             },
             "dependsOn": []
         },
@@ -177,38 +177,39 @@
                 "hidden-related:/subscriptions/b11ec350-db26-42ae-8e4e-13be2a772b63/resourcegroups/nzfhirserver/providers/Microsoft.Web/serverfarms/ServicePlaned84054a-9ece": "empty"
             },
             "scale": null,
-            "properties": {
-                "enabled": true,
-                "hostNameSslStates": [
-                    {
-                        "name": "[concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'),'.azurewebsites.net')]",
-                        "sslState": "Disabled",
-                        "virtualIP": null,
-                        "thumbprint": null,
-                        "toUpdate": null,
-                        "hostType": "Standard"
-                    },
-                    {
-                        "name": "[concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'),'.scm.azurewebsites.net')]",
-                        "sslState": "Disabled",
-                        "virtualIP": null,
-                        "thumbprint": null,
-                        "toUpdate": null,
-                        "hostType": "Repository"
-                    }
-                ],
-                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', concat(parameters('deployprefix'),parameters('serverfarms_ServicePlan_name'),variables('deploysuffix')))]",
-                "reserved": false,
-                "siteConfig": null,
-                "scmSiteAlsoStopped": false,
-                "hostingEnvironmentProfile": null,
-                "clientAffinityEnabled": true,
-                "clientCertEnabled": false,
-                "hostNamesDisabled": false,
-                "containerSize": 0,
-                "dailyMemoryTimeQuota": 0,
-                "cloningInfo": null
-            },
+      "properties": {
+        "enabled": true,
+        "hostNameSslStates": [
+          {
+            "name": "[concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'),'.azurewebsites.net')]",
+            "sslState": "Disabled",
+            "virtualIP": null,
+            "thumbprint": null,
+            "toUpdate": null,
+            "hostType": "Standard"
+          },
+          {
+            "name": "[concat(parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'),'.scm.azurewebsites.net')]",
+            "sslState": "Disabled",
+            "virtualIP": null,
+            "thumbprint": null,
+            "toUpdate": null,
+            "hostType": "Repository"
+          }
+        ],
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', concat(parameters('deployprefix'),parameters('serverfarms_ServicePlan_name'),variables('deploysuffix')))]",
+        "reserved": false,
+        "httpsOnly": true,
+        "siteConfig": null,
+        "scmSiteAlsoStopped": false,
+        "hostingEnvironmentProfile": null,
+        "clientAffinityEnabled": true,
+        "clientCertEnabled": false,
+        "hostNamesDisabled": false,
+        "containerSize": 0,
+        "dailyMemoryTimeQuota": 0,
+        "cloningInfo": null
+      },
 			"resources": [
 			   {
 					"apiVersion": "2015-08-01",
