@@ -35,6 +35,7 @@ namespace FHIR3APIApp.Controllers
 {
     [EnableCors(origins: "*", headers: "*", methods: "*")]
     [FHIRAuthorize]
+    [RequireHttps]
     [RoutePrefix("")]
     public class ResourceController : ApiController
     {
@@ -127,7 +128,7 @@ namespace FHIR3APIApp.Controllers
                 response.Headers.Add("ETag", "W/\"" + p.Meta.VersionId + "\"");
                 
                 //Extract and Save each Resource in bundle if it's a batch type
-                if (p.ResourceType==ResourceType.Bundle && ((Bundle)p).Type==Bundle.BundleType.Batch)
+                if (p.ResourceType==ResourceType.Bundle && (((Bundle)p).Type==Bundle.BundleType.Batch || ((Bundle)p).Type == Bundle.BundleType.Message))
                 {
                     Bundle source = (Bundle)p;
                     /*Bundle results = new Bundle();

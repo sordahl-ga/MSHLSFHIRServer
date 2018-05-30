@@ -239,6 +239,7 @@
     <Compile Include="Providers\AzureBlobHistoryStore.cs" />
     <Compile Include="Providers\IFHIRHistoryStore.cs" />
     <Compile Include="Providers\IFHIRStore.cs" />
+    <Compile Include="Security\RequireHttps.cs" />
     <Compile Include="Startup.cs" />
     <Compile Include="Utils\FhirHelper.cs" />
     <Compile Include="Utils\FhirParmMapper.cs" />
