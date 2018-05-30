@@ -99,16 +99,14 @@ namespace FHIR3APIApp.Controllers
                 else throw new Exception("Invalid Content-Type must be application/fhir+json or application/fhir+xml");
                 var reader = IsContentTypeJSON ? FhirJsonParser.CreateFhirReader(raw) : FhirXmlParser.CreateFhirReader(raw, false);
                 var p = (Resource)parser.Parse(reader, FhirHelper.ResourceTypeFromString(resourceType));
-                ResourceType rt;
-                Enum.TryParse(resourceType, out rt);
-                if (p.ResourceType != rt)
+                if (p.ResourceType != FhirHelper.GetResourceType(FhirHelper.ValidateResourceType(resourceType)))
                 {
                     OperationOutcome oo = new OperationOutcome();
                     oo.Issue = new System.Collections.Generic.List<OperationOutcome.IssueComponent>();
                     OperationOutcome.IssueComponent ic = new OperationOutcome.IssueComponent();
                     ic.Severity = OperationOutcome.IssueSeverity.Error;
                     ic.Code = OperationOutcome.IssueType.Exception;
-                    ic.Diagnostics = "Resource provide is not of type " + resourceType;
+                    ic.Diagnostics = "Resource provided is not of type " + resourceType;
                     oo.Issue.Add(ic);
                     var respconf = this.Request.CreateResponse(HttpStatusCode.BadRequest);
                     respconf.Content = new StringContent(SerializeResponse(oo), Encoding.UTF8);
@@ -180,6 +178,7 @@ namespace FHIR3APIApp.Controllers
         public async Task<HttpResponseMessage> Get(string resource)
         {
             string respval = null;
+            string validResource = FhirHelper.ValidateResourceType(resource);
             if (Request.RequestUri.AbsolutePath.ToLower().EndsWith("metadata"))
             {
                 respval = SerializeResponse(FhirHelper.GenerateCapabilityStatement(Request.RequestUri.AbsoluteUri));
@@ -198,19 +197,19 @@ namespace FHIR3APIApp.Controllers
                 int iqueryTotal = 0;
                 if (string.IsNullOrEmpty(_id))
                 {
-                    string query = FhirParmMapper.Instance.GenerateQuery(storage, resource,nvc);
-                    searchrslt = await storage.QueryFHIRResource(query, resource, int.Parse(_count), _nextpage,long.Parse(_querytotal));
+                    string query = FhirParmMapper.Instance.GenerateQuery(storage, validResource, nvc);
+                    searchrslt = await storage.QueryFHIRResource(query, validResource, int.Parse(_count), _nextpage,long.Parse(_querytotal));
                     retVal = searchrslt.Resources;
                     iqueryTotal = (int)searchrslt.Total;
 
                 } else
                 {
                     retVal = new List<Resource>();
-                    var r = await storage.LoadFHIRResource(_id, resource);
+                    var r = await storage.LoadFHIRResource(_id, validResource);
                     if (r != null) ((List<Resource>)retVal).Add(r);
                     iqueryTotal = retVal.Count();
                 }
-                var baseurl = Request.RequestUri.Scheme + "://" + Request.RequestUri.Authority + "/" + resource;
+                var baseurl = Request.RequestUri.Scheme + "://" + Request.RequestUri.Authority + "/" + validResource;
                 Bundle results = new Bundle();
                 results.Id = Guid.NewGuid().ToString();
                 results.Type = Bundle.BundleType.Searchset;
@@ -266,7 +265,8 @@ namespace FHIR3APIApp.Controllers
         {
             HttpResponseMessage response = null;
             string respval = "";
-            var retVal = await storage.LoadFHIRResource(id, resource);
+            string validResource = FhirHelper.ValidateResourceType(resource);
+            var retVal = await storage.LoadFHIRResource(id, validResource);
             if (retVal != null)
             {
                 var del = await storage.DeleteFHIRResource(retVal);
@@ -310,7 +310,8 @@ namespace FHIR3APIApp.Controllers
 
             HttpResponseMessage response = null;
             string respval = "";
-            var retVal = await storage.LoadFHIRResource(id, resource);
+            string validResource = FhirHelper.ValidateResourceType(resource);
+            var retVal = await storage.LoadFHIRResource(id, validResource);
             if (retVal != null)
             {
                 respval = SerializeResponse(retVal);
@@ -334,10 +335,11 @@ namespace FHIR3APIApp.Controllers
         {
             HttpResponseMessage response = null;
             string respval = "";
-            string item = storage.HistoryStore.GetResourceHistoryItem(resource, id, vid);
+            string validResource = FhirHelper.ValidateResourceType(resource);
+            string item = storage.HistoryStore.GetResourceHistoryItem(validResource, id, vid);
             if (item != null)
             {
-                Resource retVal = (Resource)jsonparser.Parse(item, FhirHelper.ResourceTypeFromString(resource));
+                Resource retVal = (Resource)jsonparser.Parse(item, FhirHelper.ResourceTypeFromString(validResource));
                 if (retVal != null) respval = SerializeResponse(retVal);
                 response = this.Request.CreateResponse(HttpStatusCode.OK);
                 response.Headers.TryAddWithoutValidation("Accept", CurrentAcceptType);
@@ -359,7 +361,8 @@ namespace FHIR3APIApp.Controllers
         public HttpResponseMessage GetHistoryComplete(string resource, string id)
         {
             string respval = "";
-            IEnumerable<string> history= storage.HistoryStore.GetResourceHistory(resource, id);
+            string validResource = FhirHelper.ValidateResourceType(resource);
+            IEnumerable<string> history= storage.HistoryStore.GetResourceHistory(validResource, id);
             //Create Return Bundle
             Bundle results = new Bundle();
             results.Id = Guid.NewGuid().ToString();
@@ -372,7 +375,7 @@ namespace FHIR3APIApp.Controllers
             foreach (string h in history)
             {
                 //todo
-                var r = (Resource)jsonparser.Parse(h, FhirHelper.ResourceTypeFromString(resource));
+                var r = (Resource)jsonparser.Parse(h, FhirHelper.ResourceTypeFromString(validResource));
                 results.Entry.Add(new Bundle.EntryComponent() { Resource = r, FullUrl = FhirHelper.GetFullURL(Request, r) });
                
             }

@@ -243,6 +243,7 @@
     <Compile Include="Startup.cs" />
     <Compile Include="Utils\FhirHelper.cs" />
     <Compile Include="Utils\FhirParmMapper.cs" />
+    <Compile Include="Utils\InvalidResourceException.cs" />
     <Compile Include="Utils\UnityResolver.cs" />
   </ItemGroup>
   <ItemGroup>

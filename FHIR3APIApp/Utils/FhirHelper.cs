@@ -30,6 +30,7 @@ namespace FHIR3APIApp.Utils
 {
     public static class FhirHelper
     {
+       
         public static string URLBase64Encode(string plainText)
         {
             if (plainText == null) return null;
@@ -106,13 +107,33 @@ namespace FHIR3APIApp.Utils
             cs.Rest.Add(rc);
             return cs;
         }
+    
         public static Type ResourceTypeFromString(string resourceType)
         {
-            return Type.GetType("Hl7.Fhir.Model." + resourceType + ",Hl7.Fhir.STU3.Core");
+            return Type.GetType("Hl7.Fhir.Model." + ValidateResourceType(resourceType) + ",Hl7.Fhir.STU3.Core");
+        }
+        public static string ValidateResourceType(string resourceType)
+        {
+            ResourceType t = GetResourceType(resourceType);
+            var rts = GetResourceTypeString(t);
+            if (rts.Equals(resourceType, StringComparison.CurrentCultureIgnoreCase)) {
+                return rts;
+            }
+            throw new InvalidResourceException("Resource Type: " + resourceType + " is not valid!");
+        }
+        public static ResourceType GetResourceType(string resourceType)
+        {
+            ResourceType rt;
+            Enum.TryParse(resourceType, true, out rt);
+            return rt;
+        }
+        public static string GetResourceTypeString(ResourceType rt)
+        {
+            return Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType),rt);
         }
         public static string GetResourceTypeString(Resource r)
         {
-            return Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType);
+            return GetResourceTypeString(r.ResourceType);
         }
         public static string GetFullURL(HttpRequestMessage request, Resource r)
         {
