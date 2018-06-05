@@ -51,9 +51,15 @@ MedicationStatement.patient=string
 MedicationStatement.patient.default=LOWER(c.subject.reference)='patient/~v0~'
 MedicationStatement.subject=string
 MedicationStatement.subject.default=LOWER(c.subject.reference)='~v0~'
+MedicationRequest.patient=string
+MedicationRequest.patient.default=LOWER(c.subject.reference)='patient/~v0~'
+MedicationRequest.subject=string
+MedicationRequest.subject.default=LOWER(c.subject.reference)='~v0~'
 AdverseEvent.patient=string
 AdverseEvent.patient.default=LOWER(c.subject.reference)='patient/~v0~'
 AdverseEvent.subject=string
 AdverseEvent.subject.default=LOWER(c.subject.reference)='patient/~v0~'
 Condition.subject=string
 Condition.subject.default=LOWER(c.subject.reference)='patient/~v0~'
+Encounter.subject=string
+Encounter.subject.default=LOWER(c.subject.reference)='patient/~v0~'
