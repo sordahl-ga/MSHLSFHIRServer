@@ -38,8 +38,9 @@ namespace AuthorizationServer
             app.UseWindowsAzureActiveDirectoryBearerAuthentication(
                 new WindowsAzureActiveDirectoryBearerAuthenticationOptions
         {
-            Audience = ConfigurationManager.AppSettings["ida:Audience"],
-            Tenant = ConfigurationManager.AppSettings["ida:Tenant"]
+                TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters() { ValidAudience = ConfigurationManager.AppSettings["ida:Audience"]},
+                Tenant = ConfigurationManager.AppSettings["ida:Tenant"]
+                
         });
 
         }

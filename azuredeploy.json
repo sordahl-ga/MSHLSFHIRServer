@@ -405,11 +405,5 @@
             ]
         }
       
-    ],
-	"outputs": {
-		"fhirserverurl": {
-			"type": "string",
-			"value": "[concat('https://',parameters('deployprefix'),parameters('sites_fhirserver_name'),variables('deploysuffix'),'.azurewebsites.net')]"
-		}
-	}
+    ]
 }
