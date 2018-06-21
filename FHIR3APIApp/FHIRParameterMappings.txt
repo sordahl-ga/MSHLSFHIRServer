@@ -63,8 +63,6 @@ Condition.subject=string
 Condition.subject.default=LOWER(c.subject.reference)='patient/~v0~'
 Encounter.subject=string
 Encounter.subject.default=LOWER(c.subject.reference)='patient/~v0~'
-Encounter.subject=string
-Encounter.subject.default=LOWER(c.subject.reference)='patient/~v0~'
 MessageHeader.event=string
 MessageHeader.event.default=c.event.code='~v0~'
 MessageHeader.focus=string
