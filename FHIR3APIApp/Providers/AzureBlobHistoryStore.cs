@@ -58,7 +58,7 @@ namespace FHIR3APIApp.Providers
     }
     public class AzureBlobHistoryStore : IFHIRHistoryStore
     {
-        private static string CONTAINER = "fhirhistory";
+        private static string CONTAINER = CloudConfigurationManager.GetSetting("FHIRDB") + "-history";
         private CloudBlobContainer blob = null;
         public AzureBlobHistoryStore()
         {
