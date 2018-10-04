@@ -72,3 +72,5 @@ ProcedureRequest.patient=string
 ProcedureRequest.patient.default=c.subject.reference='Patient/~v0~'
 ProcedureRequest.code=string
 ProcedureRequest.code.default=CONTAINS(c.code.text,'~v0~')
+DiagnosticReport.patient=string
+DiagnosticReport.patient.default=c.subject.reference='Patient/~v0~'

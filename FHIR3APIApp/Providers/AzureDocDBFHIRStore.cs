@@ -62,7 +62,12 @@ namespace FHIR3APIApp.Providers
         /// The Througput offer for the FHIRDB
         /// </summary>
         private static readonly string DBDTU = CloudConfigurationManager.GetSetting("FHIRDBTHROUHPUT");
+        /// <summary>
+        /// The storage size for the CosmosDB Collections of Resources F=Fixed (10GB) or U=Unlimited will create a partition on /id
+        /// </summary>
+        private static readonly string DBSTORAGE = CloudConfigurationManager.GetSetting("FHIRDBSTORAGE");
 
+        private bool fixeddb = true;
         private bool databasecreated = false;
         private ConcurrentDictionary<string, string> collection = new ConcurrentDictionary<string, string>();
         private FhirJsonParser parser = null;
@@ -107,7 +112,7 @@ namespace FHIR3APIApp.Providers
             ps.AllowUnrecognizedEnums = true;
             
             parser = new FhirJsonParser(ps);
-            
+            fixeddb = (DBSTORAGE == null || DBSTORAGE.ToUpper().StartsWith("F"));
 
 
         }    
@@ -127,11 +132,13 @@ namespace FHIR3APIApp.Providers
             DocumentCollection collectionDefinition = new DocumentCollection();
                 collectionDefinition.Id = collectionName;
                 collectionDefinition.IndexingPolicy = new IndexingPolicy(new RangeIndex(DataType.String) { Precision = -1 });
+                if (!fixeddb)
+                    collectionDefinition.PartitionKey.Paths.Add("/id");
             
                 var x  = await client.CreateDocumentCollectionIfNotExistsAsync(
                     UriFactory.CreateDatabaseUri(databaseName),
                     collectionDefinition,
-                    new RequestOptions { OfferThroughput = int.Parse(DBDTU) });
+                    new RequestOptions { OfferThroughput = int.Parse(DBDTU)});
                 collection.TryAdd(collectionName, collectionName);
             return x;
         }
@@ -139,7 +146,15 @@ namespace FHIR3APIApp.Providers
         {
             try
             {
-                var response = await client.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseName, collectionName, identity));
+                Microsoft.Azure.Documents.Document response = null;
+                if (!fixeddb)
+                {
+                    response = await client.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseName, collectionName, identity), new RequestOptions { PartitionKey = new PartitionKey(identity) });
+                }
+                else
+                {
+                    response = await client.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseName, collectionName, identity));
+                }
                 return response;
             }
             catch (Exception de)
@@ -190,7 +205,13 @@ namespace FHIR3APIApp.Providers
             //TODO Implement Delete by Identity
             await CreateDocumentCollectionIfNotExists(DBName, Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType));
             try {
-                await this.client.DeleteDocumentAsync(UriFactory.CreateDocumentUri(DBName, Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType),r.Id));
+                if (!fixeddb)
+                {
+                    await this.client.DeleteDocumentAsync(UriFactory.CreateDocumentUri(DBName, Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType), r.Id), new RequestOptions { PartitionKey = new PartitionKey(r.Id) });
+                } else
+                {
+                    await this.client.DeleteDocumentAsync(UriFactory.CreateDocumentUri(DBName, Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType), r.Id));
+                }
                 return true;
             }
             catch (DocumentClientException de) {
@@ -222,26 +243,33 @@ namespace FHIR3APIApp.Providers
             
                 List<Hl7.Fhir.Model.Resource> retVal = new List<Hl7.Fhir.Model.Resource>();
                 await CreateDocumentCollectionIfNotExists(DBName, resourceType);
-                var options = new FeedOptions
-                { 
-                    MaxItemCount = count,
-                    RequestContinuation = Utils.FhirHelper.URLBase64Decode(continuationToken)                  
-                };
-                var collection = UriFactory.CreateDocumentCollectionUri(DBName, resourceType);
-                var docq = client.CreateDocumentQuery<Document>(collection, query, options).AsDocumentQuery();
-                var rslt = await docq.ExecuteNextAsync<Document>();
-                //Get Totalcount first
-                if (querytotal < 0)
-                {
-                    //var totalquery = query.Replace("select value c", "select value count(1)");
-                    //querytotal= (long)client.CreateDocumentQuery(collection, totalquery).AsEnumerable().First();
-                    querytotal = rslt.Count;
-                }
-                foreach (Document doc in rslt)
-                {
-                     retVal.Add(ConvertDocument(doc));
-                }
-                return new ResourceQueryResult(retVal, querytotal, Utils.FhirHelper.URLBase64Encode(rslt.ResponseContinuation));
+            var options = new FeedOptions
+            {
+                MaxItemCount = count,
+                RequestContinuation = Utils.FhirHelper.URLBase64Decode(continuationToken)
+              
+            };
+            if (!fixeddb)
+            {
+                options.EnableCrossPartitionQuery = true;
+                options.MaxDegreeOfParallelism = 10;
+                options.MaxBufferedItemCount = 100;
+            }
+            var collection = UriFactory.CreateDocumentCollectionUri(DBName, resourceType);
+            var docq = client.CreateDocumentQuery<Document>(collection, query, options).AsDocumentQuery();
+            var rslt = await docq.ExecuteNextAsync<Document>();
+            //Get Totalcount first
+            if (querytotal < 0)
+            {
+                //var totalquery = query.Replace("select value c", "select value count(1)");
+                //querytotal= (long)client.CreateDocumentQuery(collection, totalquery).AsEnumerable().First();
+                querytotal = rslt.Count;
+            }
+            foreach (Document doc in rslt)
+            {
+                    retVal.Add(ConvertDocument(doc));
+            }
+            return new ResourceQueryResult(retVal, querytotal, Utils.FhirHelper.URLBase64Encode(rslt.ResponseContinuation));
             
         }
 
