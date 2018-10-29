@@ -22,7 +22,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
-using Microsoft.Azure;
 using System.Net;
 using Newtonsoft.Json.Linq;
 using Hl7.Fhir.Serialization;
@@ -45,33 +44,13 @@ namespace FHIR3APIApp.Providers
         /// The DocumentDB client instance.
         /// </summary>
         private DocumentClient client;
-        /// <summary>
-        /// The Azure DocumentDB endpoint
-        /// </summary>
-        private static readonly string EndpointUri = CloudConfigurationManager.GetSetting("DBStorageEndPointUri");
-
-        /// <summary>
-        /// The primary key for the Azure DocumentDB account.
-        /// </summary>
-        private static readonly string PrimaryKey = CloudConfigurationManager.GetSetting("DBStoragePrimaryKey");
-        /// <summary>
-        /// The DBName for DocumentDB
-        /// </summary>
-        private static readonly string DBName = CloudConfigurationManager.GetSetting("FHIRDB");
-        /// <summary>
-        /// The Througput offer for the FHIRDB
-        /// </summary>
-        private static readonly string DBDTU = CloudConfigurationManager.GetSetting("FHIRDBTHROUHPUT");
-        /// <summary>
-        /// The storage size for the CosmosDB Collections of Resources F=Fixed (10GB) or U=Unlimited will create a partition on /id
-        /// </summary>
-        private static readonly string DBSTORAGE = CloudConfigurationManager.GetSetting("FHIRDBSTORAGE");
-
         private bool fixeddb = true;
         private bool databasecreated = false;
         private ConcurrentDictionary<string, string> collection = new ConcurrentDictionary<string, string>();
         private FhirJsonParser parser = null;
-        
+        private int imaxdocsize = 500000;
+        private SecretResolver _secresolve;
+        private string DBName = "";
         public string SelectAllQuery
         {
             get
@@ -89,19 +68,28 @@ namespace FHIR3APIApp.Providers
         }
         private Hl7.Fhir.Model.Resource ConvertDocument(Document doc)
         {
+            
             var obj = (JObject)(dynamic)doc;
+            string rt = (string)obj["resourceType"];
+            string id = (string)obj["id"];
+            string version = (string)obj["meta"]["versionId"];
+            //if this had attachments removed for size then retrieve and send the history version which has full attachment data
+            if (obj["_fhirattach"] !=null)
+            {
+                obj = JObject.Parse(historystore.GetResourceHistoryItem(rt, id, version));
+            }
             obj.Remove("_rid");
             obj.Remove("_self");
             obj.Remove("_etag");
             obj.Remove("_attachments");
             obj.Remove("_ts");
-            string rt = (String)obj["resourceType"];
             Hl7.Fhir.Model.Resource t = (Hl7.Fhir.Model.Resource)parser.Parse(obj.ToString(Newtonsoft.Json.Formatting.None), FhirHelper.ResourceTypeFromString(rt));
             return t;
         }
         public AzureDocDBFHIRStore(IFHIRHistoryStore history) 
         {
-            this.client = new DocumentClient(new Uri(EndpointUri), PrimaryKey, new ConnectionPolicy
+            _secresolve = new SecretResolver();
+            this.client = new DocumentClient(new Uri(_secresolve.GetSecret("DBStorageEndPointUri").Result), _secresolve.GetSecret("DBStoragePrimaryKey").Result, new ConnectionPolicy
             {
                 ConnectionMode = ConnectionMode.Direct,
                 ConnectionProtocol = Protocol.Tcp
@@ -110,10 +98,11 @@ namespace FHIR3APIApp.Providers
             ParserSettings ps = new ParserSettings();
             ps.AcceptUnknownMembers = true;
             ps.AllowUnrecognizedEnums = true;
-            
             parser = new FhirJsonParser(ps);
+            string DBSTORAGE = _secresolve.GetConfiguration("FHIRDBStorage");
             fixeddb = (DBSTORAGE == null || DBSTORAGE.ToUpper().StartsWith("F"));
-
+            int.TryParse(_secresolve.GetConfiguration("FHIRMAXDOCSIZE","500000"), out imaxdocsize);
+            DBName = _secresolve.GetConfiguration("FHIRDB", "FHIR3");
 
         }    
        
@@ -138,7 +127,7 @@ namespace FHIR3APIApp.Providers
                 var x  = await client.CreateDocumentCollectionIfNotExistsAsync(
                     UriFactory.CreateDatabaseUri(databaseName),
                     collectionDefinition,
-                    new RequestOptions { OfferThroughput = int.Parse(DBDTU)});
+                    new RequestOptions { OfferThroughput = int.Parse(_secresolve.GetConfiguration("FHIRDBTHROUHPUT","2000"))});
                 collection.TryAdd(collectionName, collectionName);
             return x;
         }
@@ -175,17 +164,21 @@ namespace FHIR3APIApp.Providers
                 string fh = historystore.InsertResourceHistoryItem(r);
                 if (fh == null)
                 {
-                    //Trace.TraceError("Failed to update resource history...Upsert aborted for {0}-{1}", Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType), r.Id);
-                    return retstatus;
-                }
-                //Overflow remove attachments or error
-                if (fh.Length > 500000)
-                {
+                    Trace.TraceError("Failed to update resource history...Upsert aborted for {0}-{1}", Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType), r.Id);
                     return retstatus;
                 }
                 JObject obj = JObject.Parse(fh);
+                //Overflow remove attachments flagged to pull from history
+                if (fh.Length > imaxdocsize)
+                {
+                    string rt = Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType);
+                    obj = FhirAttachments.Instance.RemoveAttachementData(rt,obj);
+                }
+                
+                
                 var inserted = await this.client.UpsertDocumentAsync(UriFactory.CreateDocumentCollectionUri(databaseName, Enum.GetName(typeof(Hl7.Fhir.Model.ResourceType), r.ResourceType)), obj);
                 retstatus = (inserted.StatusCode == HttpStatusCode.Created ? 1 : 0);
+               
                 return retstatus;
             }
             catch (DocumentClientException de)

@@ -1,0 +1,25 @@
+﻿#Attachment Resources Storage Stripping InlineData
+#Defines FHIR Resource Types with properties of type attachment and removes inline data from DB storage and defers to BLOB Storage Loads if necessary for size limits
+#[Resource]=[JSON Access Paths to Attachments (Seperated by commas)]
+#-----------------------------------------------------------------------------------------------------------------------------------
+BodySite=$..image
+Claim=$..information[*].valueAttachment
+Communication=$..payload[*].contentAttachment
+CommunicationRequest=$..payload[*].contentAttachment
+Consent=$..sourceAttachment
+Contract=$..bindingAttachment,$..friendly[*].contentAttachment,$..rule[*].contentAttachment
+DiagnosticReport=$..presentedForm
+DocumentManifest=$..content[*].pAttachment
+DocumentReference=$..content[*].attachment
+ExplanationOfBenefit=$..information[*].valueAttachment
+HealthcareService=$..photo
+Library=$..content
+Media=$..content
+Medication=$..image
+Observation=$..valueAttachment,$..component[*].valueAttachment
+Patient=$..photo
+Person=$..photo
+Practitioner=$..photo
+Questionnaire=$..item[*].enableWhen[*].answerAttachment,$..item[*].option[*].initialAttachment
+QuestionnaireResponse=$..item[*].answer[*].valueAttachment
+RelatedPerson=$..photo

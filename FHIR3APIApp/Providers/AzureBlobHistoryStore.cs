@@ -28,6 +28,7 @@ using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.DataMovement;
 using System.IO;
 using System.Diagnostics;
+using FHIR3APIApp.Utils;
 
 namespace FHIR3APIApp.Providers
 {
@@ -58,16 +59,18 @@ namespace FHIR3APIApp.Providers
     }
     public class AzureBlobHistoryStore : IFHIRHistoryStore
     {
-        private static string CONTAINER = CloudConfigurationManager.GetSetting("FHIRDB").ToLower() + "-history";
+        private SecretResolver _secresolve = null;
+        private string CONTAINER = null;
         private CloudBlobContainer blob = null;
         public AzureBlobHistoryStore()
         {
-          
-                CloudStorageAccount storageAccount = CloudStorageAccount.Parse(CloudConfigurationManager.GetSetting("StorageConnectionString"));
-                // Create the table if it doesn't exist.
-                CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
-                blob = blobClient.GetContainerReference(CONTAINER);
-                blob.CreateIfNotExists();
+            _secresolve = new SecretResolver(); 
+            CONTAINER = _secresolve.GetConfiguration("FHIRDB","FHIR3").ToLower() + "-history";
+            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(_secresolve.GetSecret("StorageConnectionString").Result);
+             // Create the table if it doesn't exist.
+             CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
+             blob = blobClient.GetContainerReference(CONTAINER);
+             blob.CreateIfNotExists();
         }
        
         public string InsertResourceHistoryItem(Resource r)
