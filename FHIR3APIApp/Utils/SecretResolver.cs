@@ -14,21 +14,33 @@ namespace FHIR3APIApp.Utils
         private string _kvuri = null;
         public SecretResolver()
         {
-            try
-            {
                 _kvuri = CloudConfigurationManager.GetSetting("KeyVaultURI");
                 if (_kvuri != null)
                 {
                     if (_kvuri.Last().ToString() != "/") _kvuri += "/";
+                    
+                }
+            
+
+        }
+        private KeyVaultClient GetClient()
+        {
+            if (_client != null) return _client;
+            if (_kvuri == null) return null;
+            try
+            {
+               
                     AzureServiceTokenProvider azureServiceTokenProvider = new AzureServiceTokenProvider();
                     _client = new KeyVaultClient(
                         new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
-                }
+                return _client;
+                
             }
-            catch(Exception e)
+            catch (Exception e)
             {
-                Trace.TraceError("Error loading keyvault client: Message: {0}",e.Message);
+                Trace.TraceError("Error loading keyvault client: Message: {0}", e.Message);
             }
+            return null;
 
         }
         public string GetConfiguration(string configname,string defaultval=null)
@@ -39,9 +51,10 @@ namespace FHIR3APIApp.Utils
         public async System.Threading.Tasks.Task<string> GetSecret(string secretname)
         {
             //Key Vault Not Specified use Configuration
-            if (_client != null)
+            var c = GetClient();
+            if (c!=null)
             {
-                var secret = await _client.GetSecretAsync(_kvuri + "secrets/" + secretname)
+                var secret = await c.GetSecretAsync(_kvuri + "secrets/" + secretname)
                     .ConfigureAwait(false);
                 return secret.Value;
             }
