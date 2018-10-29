@@ -41,7 +41,7 @@ namespace FHIR3APIApp.Controllers
     {
 
         private IFHIRStore storage;
-        private SecretResolver _secresolve = new SecretResolver();
+        private SecretResolver _secresolve;
         private static string FHIRCONTENTTYPEJSON = "application/fhir+json;charset=utf-8";
         private static string FHIRCONTENTTYPEXML = "application/fhir+xml;charset=utf-8";
         private string parsemode = null;
@@ -49,9 +49,13 @@ namespace FHIR3APIApp.Controllers
         private FhirJsonParser jsonparser = null;
         private FhirXmlParser xmlparser = null;
         private ParserSettings parsersettings = null;
+        public ResourceController()
+        {
 
+        }
         //TODO: Inject Storage Implementation
         public ResourceController(IFHIRStore store) {
+            _secresolve = new SecretResolver();
             parsemode = _secresolve.GetConfiguration("FHIRParserMode","open");
             _strict = (parsemode == null || parsemode.Equals("strict", StringComparison.CurrentCultureIgnoreCase) ? true : false);
             this.storage = store;
