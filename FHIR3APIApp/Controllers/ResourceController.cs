@@ -49,10 +49,7 @@ namespace FHIR3APIApp.Controllers
         private FhirJsonParser jsonparser = null;
         private FhirXmlParser xmlparser = null;
         private ParserSettings parsersettings = null;
-        public ResourceController()
-        {
-
-        }
+       
         //TODO: Inject Storage Implementation
         public ResourceController(IFHIRStore store) {
             _secresolve = new SecretResolver();

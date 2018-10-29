@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Web;
 using Microsoft.Azure;
@@ -13,13 +14,20 @@ namespace FHIR3APIApp.Utils
         private string _kvuri = null;
         public SecretResolver()
         {
-            _kvuri = CloudConfigurationManager.GetSetting("KeyVaultURI");
-            if (_kvuri != null)
+            try
             {
-                if (_kvuri.Last().ToString() != "/") _kvuri += "/";
-                AzureServiceTokenProvider azureServiceTokenProvider = new AzureServiceTokenProvider();
-                _client = new KeyVaultClient(
-                    new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
+                _kvuri = CloudConfigurationManager.GetSetting("KeyVaultURI");
+                if (_kvuri != null)
+                {
+                    if (_kvuri.Last().ToString() != "/") _kvuri += "/";
+                    AzureServiceTokenProvider azureServiceTokenProvider = new AzureServiceTokenProvider();
+                    _client = new KeyVaultClient(
+                        new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
+                }
+            }
+            catch(Exception e)
+            {
+                Trace.TraceError("Error loading keyvault client: Message: {0}",e.Message);
             }
 
         }
