@@ -25,6 +25,7 @@ namespace FHIR3APIApp.Utils
         }
         private KeyVaultClient GetClient()
         {
+            return null;
             if (_client != null) return _client;
             if (_kvuri == null) return null;
             try
